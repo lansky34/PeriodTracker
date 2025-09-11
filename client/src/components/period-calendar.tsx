@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getDaysInMonth, isSameMonth, isToday, formatDate, getMonthName, isSameDay, parseDate } from "../lib/date-utils";
+import { getDaysInMonth, isSameMonth, isToday, formatDate, getMonthName, isSameDay, parseDate, calculateCycleInsights, isInFertileWindow, isOvulationDay, isPeakFertilityDay } from "../lib/date-utils";
 import { apiRequest } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,6 +28,8 @@ export default function PeriodCalendar({ onDateSelect, selectedDate }: PeriodCal
   const { data: insights } = useQuery<any>({
     queryKey: ["/api/insights"],
   });
+
+  const cycleInsights = calculateCycleInsights(periods);
 
   const createPeriod = useMutation({
     mutationFn: async (data: { startDate: string; endDate?: string }) => {
@@ -80,15 +82,18 @@ export default function PeriodCalendar({ onDateSelect, selectedDate }: PeriodCal
   };
 
   const isFertileDay = (date: Date): boolean => {
-    // Simple fertile window calculation (14 days before next predicted period, ±3 days)
-    if (!insights?.nextPeriodDate) return false;
-    
-    const nextPeriod = parseDate(insights.nextPeriodDate);
-    const ovulationDay = new Date(nextPeriod.getTime() - 14 * 24 * 60 * 60 * 1000);
-    const fertileStart = new Date(ovulationDay.getTime() - 3 * 24 * 60 * 60 * 1000);
-    const fertileEnd = new Date(ovulationDay.getTime() + 3 * 24 * 60 * 60 * 1000);
-    
-    return date >= fertileStart && date <= fertileEnd;
+    if (!cycleInsights.nextOvulation) return false;
+    return isInFertileWindow(date, cycleInsights.nextOvulation);
+  };
+
+  const isOvulationCalendarDay = (date: Date): boolean => {
+    if (!cycleInsights.nextOvulation) return false;
+    return isOvulationDay(date, cycleInsights.nextOvulation);
+  };
+
+  const isPeakFertility = (date: Date): boolean => {
+    if (!cycleInsights.nextOvulation) return false;
+    return isPeakFertilityDay(date, cycleInsights.nextOvulation);
   };
 
   const hasSymptoms = (date: Date): boolean => {
@@ -137,6 +142,10 @@ export default function PeriodCalendar({ onDateSelect, selectedDate }: PeriodCal
       className += "period-day ";
     } else if (isPredictionDay(date)) {
       className += "prediction-day ";
+    } else if (isOvulationCalendarDay(date)) {
+      className += "ovulation-day ";
+    } else if (isPeakFertility(date)) {
+      className += "peak-fertility-day ";
     } else if (isFertileDay(date)) {
       className += "fertile-day ";
     } else {
@@ -217,6 +226,14 @@ export default function PeriodCalendar({ onDateSelect, selectedDate }: PeriodCal
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 period-day rounded"></div>
               <span>Period days</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 ovulation-day rounded"></div>
+              <span>Ovulation day</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 peak-fertility-day rounded"></div>
+              <span>Peak fertility</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 fertile-day rounded"></div>

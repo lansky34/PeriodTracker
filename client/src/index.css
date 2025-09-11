@@ -90,6 +90,17 @@
   color: white;
 }
 
+.ovulation-day {
+  background: linear-gradient(135deg, hsl(45 90% 60%), hsl(45 90% 70%));
+  color: white;
+  border: 2px solid hsl(45 90% 45%);
+}
+
+.peak-fertility-day {
+  background: linear-gradient(135deg, hsl(340 80% 70%), hsl(340 80% 80%));
+  color: white;
+}
+
 .symptom-indicator {
   width: 6px;
   height: 6px;

@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
-import { CalendarPlus, NotebookPen, Calendar, TrendingUp, Sprout } from "lucide-react";
+import { CalendarPlus, NotebookPen, Calendar, TrendingUp, Sprout, Heart, Flower } from "lucide-react";
+import { getCyclePhase, calculateCycleInsights, formatDate } from "../lib/date-utils";
 
 export default function DashboardPage() {
   const [, setLocation] = useLocation();
@@ -20,7 +21,12 @@ export default function DashboardPage() {
     queryKey: ["/api/symptoms"],
   });
 
+  const { data: periods = [] } = useQuery<any[]>({
+    queryKey: ["/api/periods"],
+  });
+
   const recentSymptoms = symptoms?.slice(0, 3) || [];
+  const cycleInsights = calculateCycleInsights(periods);
 
   const calculateCurrentCycleDay = () => {
     if (!currentCycle?.startDate) return 1;
@@ -34,34 +40,39 @@ export default function DashboardPage() {
   };
 
   const getCurrentPhase = (cycleDay: number) => {
-    if (cycleDay <= 5) {
-      return {
-        name: "Menstrual Phase",
-        description: "Period is active. Track symptoms for better insights.",
-        icon: <i className="fas fa-tint text-2xl text-primary"></i>,
-        color: "primary"
-      };
-    } else if (cycleDay <= 13) {
-      return {
-        name: "Follicular Phase",
-        description: "Energy levels are rising. Great time for new activities.",
-        icon: <i className="fas fa-leaf text-2xl text-secondary"></i>,
-        color: "secondary"
-      };
-    } else if (cycleDay <= 16) {
-      return {
-        name: "Ovulation Phase",
-        description: "Your fertility is at its peak. Track symptoms for better insights.",
-        icon: <Sprout className="w-8 h-8 text-accent" />,
-        color: "accent"
-      };
-    } else {
-      return {
-        name: "Luteal Phase",
-        description: "Pre-period phase. Watch for PMS symptoms.",
-        icon: <i className="fas fa-moon text-2xl text-muted-foreground"></i>,
-        color: "muted"
-      };
+    const phase = getCyclePhase(cycleDay, cycleInsights.avgCycleLength);
+    
+    switch (phase.phase) {
+      case 'menstrual':
+        return {
+          ...phase,
+          icon: <i className="fas fa-tint text-2xl text-primary"></i>,
+          color: "primary"
+        };
+      case 'follicular':
+        return {
+          ...phase,
+          icon: <Flower className="w-8 h-8 text-secondary" />,
+          color: "secondary"
+        };
+      case 'ovulation':
+        return {
+          ...phase,
+          icon: <Sprout className="w-8 h-8 text-accent" />,
+          color: "accent"
+        };
+      case 'luteal':
+        return {
+          ...phase,
+          icon: <Heart className="w-8 h-8 text-muted-foreground" />,
+          color: "muted"
+        };
+      default:
+        return {
+          ...phase,
+          icon: <Calendar className="w-8 h-8 text-muted-foreground" />,
+          color: "muted"
+        };
     }
   };
 
@@ -111,6 +122,56 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Cycle Insights */}
+      <Card>
+        <CardContent className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Cycle Insights</h2>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div>
+                <div className="text-sm text-muted-foreground">Cycle Regularity</div>
+                <Badge 
+                  variant={cycleInsights.regularity === 'regular' ? 'default' : 
+                         cycleInsights.regularity === 'irregular' ? 'destructive' : 'secondary'}
+                  data-testid="badge-regularity"
+                >
+                  {cycleInsights.regularity === 'unknown' ? 'Need more data' : cycleInsights.regularity}
+                </Badge>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Prediction Confidence</div>
+                <Badge 
+                  variant={cycleInsights.confidenceLevel === 'high' ? 'default' : 
+                         cycleInsights.confidenceLevel === 'medium' ? 'secondary' : 'outline'}
+                  data-testid="badge-confidence"
+                >
+                  {cycleInsights.confidenceLevel} confidence
+                </Badge>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-muted-foreground">Average cycle</div>
+              <div className="font-medium">{cycleInsights.avgCycleLength} days</div>
+            </div>
+          </div>
+          {cycleInsights.nextOvulation && (
+            <div className="mt-4 p-3 bg-muted rounded-lg">
+              <div className="text-sm font-medium text-accent">Next fertile window</div>
+              <div className="text-sm text-muted-foreground">
+                {cycleInsights.fertileWindow && (
+                  <>
+                    {formatDate(cycleInsights.fertileWindow.start)} - {formatDate(cycleInsights.fertileWindow.end)}
+                  </>
+                )}
+                <span className="ml-2">
+                  (Ovulation: {formatDate(cycleInsights.nextOvulation)})
+                </span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Current Status */}
       <Card>
