@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 import { CalendarPlus, NotebookPen, Calendar, TrendingUp, Sprout, Heart, Flower } from "lucide-react";
-import { getCyclePhase, calculateCycleInsights, formatDate } from "../lib/date-utils";
+import { getCyclePhase, calculateCycleInsights, formatDate, calculateCycleDays } from "../lib/date-utils";
 
 export default function DashboardPage() {
   const [, setLocation] = useLocation();
@@ -173,12 +173,203 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
+      {/* Detailed Analytics Dashboard */}
+      <Card>
+        <CardContent className="p-6">
+          <h2 className="text-lg font-semibold mb-4">
+            <TrendingUp className="w-5 h-5 inline mr-2" />
+            Cycle Analytics
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Cycle Length Trends */}
+            <div className="space-y-4">
+              <h3 className="font-medium text-sm text-muted-foreground">Cycle Length Patterns</h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Average Length</span>
+                  <span className="font-bold text-primary">{cycleInsights.avgCycleLength} days</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Variation</span>
+                  <span className="font-medium text-muted-foreground">±{cycleInsights.cycleVariation} days</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Period Length</span>
+                  <span className="font-medium text-secondary">{cycleInsights.avgPeriodLength} days</span>
+                </div>
+              </div>
+              
+              {/* Recent Cycles Visual */}
+              {periods.length > 1 && (
+                <div className="mt-4">
+                  <div className="text-xs text-muted-foreground mb-2">Last 6 Cycles</div>
+                  <div className="flex items-end space-x-1 h-16">
+                    {calculateCycleDays(periods).slice(0, 6).map((days, index) => {
+                      const height = Math.min((days / 35) * 100, 100);
+                      const isNormal = Math.abs(days - cycleInsights.avgCycleLength) <= 3;
+                      return (
+                        <div key={index} className="flex-1 flex flex-col items-center">
+                          <div
+                            className={`w-full rounded-t ${
+                              isNormal ? 'bg-primary' : 'bg-amber-500'
+                            } opacity-80`}
+                            style={{ height: `${height}%` }}
+                          ></div>
+                          <div className="text-xs text-muted-foreground mt-1">{days}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Cycle Regularity Analysis */}
+            <div className="space-y-4">
+              <h3 className="font-medium text-sm text-muted-foreground">Regularity Analysis</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Status</span>
+                  <Badge 
+                    variant={cycleInsights.regularity === 'regular' ? 'default' : 
+                           cycleInsights.regularity === 'irregular' ? 'destructive' : 'secondary'}
+                  >
+                    {cycleInsights.regularity === 'unknown' ? 'Need more data' : cycleInsights.regularity}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Confidence</span>
+                  <Badge 
+                    variant={cycleInsights.confidenceLevel === 'high' ? 'default' : 
+                           cycleInsights.confidenceLevel === 'medium' ? 'secondary' : 'outline'}
+                  >
+                    {cycleInsights.confidenceLevel}
+                  </Badge>
+                </div>
+                
+                {/* Regularity Score Visual */}
+                <div className="mt-3">
+                  <div className="text-xs text-muted-foreground mb-1">Consistency Score</div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all ${
+                        cycleInsights.regularity === 'regular' 
+                          ? 'bg-green-500' 
+                          : cycleInsights.regularity === 'irregular'
+                          ? 'bg-amber-500'
+                          : 'bg-gray-400'
+                      }`}
+                      style={{
+                        width: cycleInsights.regularity === 'regular' 
+                          ? '90%' 
+                          : cycleInsights.regularity === 'irregular'
+                          ? '50%'
+                          : '20%'
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Fertility Window Tracking */}
+            <div className="space-y-4">
+              <h3 className="font-medium text-sm text-muted-foreground">Fertility Tracking</h3>
+              {cycleInsights.nextOvulation && cycleInsights.fertileWindow ? (
+                <div className="space-y-3">
+                  <div className="p-3 bg-accent/10 rounded-lg">
+                    <div className="text-sm font-medium text-accent mb-1">Next Ovulation</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatDate(cycleInsights.nextOvulation)}
+                    </div>
+                  </div>
+                  <div className="p-3 bg-secondary/10 rounded-lg">
+                    <div className="text-sm font-medium text-secondary mb-1">Fertile Window</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatDate(cycleInsights.fertileWindow.start)} - {formatDate(cycleInsights.fertileWindow.end)}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      ({Math.ceil((cycleInsights.fertileWindow.end.getTime() - cycleInsights.fertileWindow.start.getTime()) / (1000 * 60 * 60 * 24)) + 1} days)
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  Track more cycles for fertility predictions
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Symptom Pattern Analysis */}
+          {symptoms && symptoms.length > 0 && (
+            <div className="mt-6 pt-6 border-t">
+              <h3 className="font-medium text-sm text-muted-foreground mb-4">Symptom Patterns</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground">Most Common Mood</div>
+                  <div className="text-sm font-medium">
+                    {(() => {
+                      const moods = symptoms.filter(s => s.mood).map(s => s.mood);
+                      if (moods.length === 0) return 'No data';
+                      const moodCounts = moods.reduce((acc: any, mood) => {
+                        acc[mood] = (acc[mood] || 0) + 1;
+                        return acc;
+                      }, {});
+                      const mostCommon = Object.keys(moodCounts).reduce((a, b) => 
+                        moodCounts[a] > moodCounts[b] ? a : b
+                      );
+                      return mostCommon;
+                    })()}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground">Average Pain Level</div>
+                  <div className="text-sm font-medium">
+                    {(() => {
+                      const painLevels = symptoms
+                        .filter(s => s.painLevel)
+                        .map(s => parseInt(s.painLevel));
+                      if (painLevels.length === 0) return 'No data';
+                      const avg = painLevels.reduce((a, b) => a + b, 0) / painLevels.length;
+                      return `${avg.toFixed(1)}/10`;
+                    })()}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground">Flow Intensity</div>
+                  <div className="text-sm font-medium">
+                    {(() => {
+                      const flows = symptoms.filter(s => s.flowIntensity).map(s => s.flowIntensity);
+                      if (flows.length === 0) return 'No data';
+                      const flowCounts = flows.reduce((acc: any, flow) => {
+                        acc[flow] = (acc[flow] || 0) + 1;
+                        return acc;
+                      }, {});
+                      const mostCommon = Object.keys(flowCounts).reduce((a, b) => 
+                        flowCounts[a] > flowCounts[b] ? a : b
+                      );
+                      return mostCommon;
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Current Status */}
       <Card>
         <CardContent className="p-6">
           <h2 className="text-lg font-semibold mb-4">Current Status</h2>
           <div className="flex items-center space-x-4">
-            <div className={`w-16 h-16 bg-${currentPhase.color} rounded-full flex items-center justify-center`}>
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+              currentPhase.color === 'primary' ? 'bg-primary' :
+              currentPhase.color === 'secondary' ? 'bg-secondary' :
+              currentPhase.color === 'accent' ? 'bg-accent' :
+              'bg-muted'
+            }`}>
               {currentPhase.icon}
             </div>
             <div>
