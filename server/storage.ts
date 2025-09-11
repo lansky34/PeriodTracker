@@ -1,6 +1,7 @@
-import { type User, type InsertUser, type Cycle, type InsertCycle, type Period, type InsertPeriod, type Symptom, type InsertSymptom } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { users, cycles, periods, symptoms, type User, type InsertUser, type Cycle, type InsertCycle, type Period, type InsertPeriod, type Symptom, type InsertSymptom } from "@shared/schema";
 import bcrypt from "bcrypt";
+import { db } from "./db";
+import { eq, desc, and, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -27,156 +28,156 @@ export interface IStorage {
   deleteSymptom(id: string): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private cycles: Map<string, Cycle>;
-  private periods: Map<string, Period>;
-  private symptoms: Map<string, Symptom>;
-
-  constructor() {
-    this.users = new Map();
-    this.cycles = new Map();
-    this.periods = new Map();
-    this.symptoms = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.email === email);
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
     const hashedPassword = await bcrypt.hash(insertUser.password, 10);
-    const user: User = {
-      ...insertUser,
-      id,
-      password: hashedPassword,
-      createdAt: new Date(),
-    };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values({
+        ...insertUser,
+        password: hashedPassword,
+      })
+      .returning();
     return user;
   }
 
   // Cycle operations
   async getCyclesByUserId(userId: string): Promise<Cycle[]> {
-    return Array.from(this.cycles.values())
-      .filter(cycle => cycle.userId === userId)
-      .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+    return await db
+      .select()
+      .from(cycles)
+      .where(eq(cycles.userId, userId))
+      .orderBy(desc(cycles.startDate));
   }
 
   async getCurrentCycle(userId: string): Promise<Cycle | undefined> {
-    const cycles = await this.getCyclesByUserId(userId);
-    return cycles.find(cycle => !cycle.isComplete) || cycles[0];
+    const userCycles = await this.getCyclesByUserId(userId);
+    return userCycles.find(cycle => !cycle.isComplete) || userCycles[0];
   }
 
   async createCycle(userId: string, insertCycle: InsertCycle): Promise<Cycle> {
-    const id = randomUUID();
-    const cycle: Cycle = {
-      ...insertCycle,
-      id,
-      userId,
-      endDate: insertCycle.endDate || null,
-      cycleLength: insertCycle.cycleLength || null,
-      periodLength: insertCycle.periodLength || null,
-      isComplete: false,
-      createdAt: new Date(),
-    };
-    this.cycles.set(id, cycle);
+    const [cycle] = await db
+      .insert(cycles)
+      .values({
+        ...insertCycle,
+        userId,
+        endDate: insertCycle.endDate || null,
+        cycleLength: insertCycle.cycleLength || null,
+        periodLength: insertCycle.periodLength || null,
+        isComplete: false,
+      })
+      .returning();
     return cycle;
   }
 
   async updateCycle(id: string, updateData: Partial<Cycle>): Promise<Cycle | undefined> {
-    const cycle = this.cycles.get(id);
-    if (!cycle) return undefined;
-    
-    const updatedCycle = { ...cycle, ...updateData };
-    this.cycles.set(id, updatedCycle);
-    return updatedCycle;
+    const [updatedCycle] = await db
+      .update(cycles)
+      .set(updateData)
+      .where(eq(cycles.id, id))
+      .returning();
+    return updatedCycle || undefined;
   }
 
   // Period operations
   async getPeriodsByUserId(userId: string): Promise<Period[]> {
-    return Array.from(this.periods.values())
-      .filter(period => period.userId === userId)
-      .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+    return await db
+      .select()
+      .from(periods)
+      .where(eq(periods.userId, userId))
+      .orderBy(desc(periods.startDate));
   }
 
   async createPeriod(userId: string, cycleId: string, insertPeriod: InsertPeriod): Promise<Period> {
-    const id = randomUUID();
-    const period: Period = {
-      ...insertPeriod,
-      id,
-      userId,
-      cycleId,
-      endDate: insertPeriod.endDate || null,
-      createdAt: new Date(),
-    };
-    this.periods.set(id, period);
+    const [period] = await db
+      .insert(periods)
+      .values({
+        ...insertPeriod,
+        userId,
+        cycleId,
+        endDate: insertPeriod.endDate || null,
+      })
+      .returning();
     return period;
   }
 
   async updatePeriod(id: string, updateData: Partial<Period>): Promise<Period | undefined> {
-    const period = this.periods.get(id);
-    if (!period) return undefined;
-    
-    const updatedPeriod = { ...period, ...updateData };
-    this.periods.set(id, updatedPeriod);
-    return updatedPeriod;
+    const [updatedPeriod] = await db
+      .update(periods)
+      .set(updateData)
+      .where(eq(periods.id, id))
+      .returning();
+    return updatedPeriod || undefined;
   }
 
   // Symptom operations
   async getSymptomsByUserId(userId: string): Promise<Symptom[]> {
-    return Array.from(this.symptoms.values())
-      .filter(symptom => symptom.userId === userId)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return await db
+      .select()
+      .from(symptoms)
+      .where(eq(symptoms.userId, userId))
+      .orderBy(desc(symptoms.date));
   }
 
   async getSymptomsByDateRange(userId: string, startDate: string, endDate: string): Promise<Symptom[]> {
-    return Array.from(this.symptoms.values())
-      .filter(symptom => 
-        symptom.userId === userId &&
-        symptom.date >= startDate &&
-        symptom.date <= endDate
+    return await db
+      .select()
+      .from(symptoms)
+      .where(
+        and(
+          eq(symptoms.userId, userId),
+          gte(symptoms.date, startDate),
+          lte(symptoms.date, endDate)
+        )
       )
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .orderBy(desc(symptoms.date));
   }
 
   async createSymptom(userId: string, insertSymptom: InsertSymptom): Promise<Symptom> {
-    const id = randomUUID();
     const currentCycle = await this.getCurrentCycle(userId);
-    const symptom: Symptom = {
-      ...insertSymptom,
-      id,
-      userId,
-      cycleId: currentCycle?.id || null,
-      flowIntensity: insertSymptom.flowIntensity || null,
-      painLevel: insertSymptom.painLevel || null,
-      mood: insertSymptom.mood || null,
-      additionalSymptoms: insertSymptom.additionalSymptoms || null,
-      notes: insertSymptom.notes || null,
-      createdAt: new Date(),
-    };
-    this.symptoms.set(id, symptom);
+    const [symptom] = await db
+      .insert(symptoms)
+      .values({
+        ...insertSymptom,
+        userId,
+        cycleId: currentCycle?.id || null,
+        flowIntensity: insertSymptom.flowIntensity || null,
+        painLevel: insertSymptom.painLevel || null,
+        mood: insertSymptom.mood || null,
+        additionalSymptoms: insertSymptom.additionalSymptoms || null,
+        notes: insertSymptom.notes || null,
+      })
+      .returning();
     return symptom;
   }
 
   async updateSymptom(id: string, updateData: Partial<Symptom>): Promise<Symptom | undefined> {
-    const symptom = this.symptoms.get(id);
-    if (!symptom) return undefined;
-    
-    const updatedSymptom = { ...symptom, ...updateData };
-    this.symptoms.set(id, updatedSymptom);
-    return updatedSymptom;
+    const [updatedSymptom] = await db
+      .update(symptoms)
+      .set(updateData)
+      .where(eq(symptoms.id, id))
+      .returning();
+    return updatedSymptom || undefined;
   }
 
   async deleteSymptom(id: string): Promise<boolean> {
-    return this.symptoms.delete(id);
+    const result = await db
+      .delete(symptoms)
+      .where(eq(symptoms.id, id))
+      .returning();
+    return result.length > 0;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
