@@ -1,13 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 import { CalendarPlus, NotebookPen, Calendar, TrendingUp, Sprout, Heart, Flower } from "lucide-react";
 import { getCyclePhase, calculateCycleInsights, formatDate, calculateCycleDays } from "../lib/date-utils";
+import { NotificationSettings } from "@/components/notification-settings";
+import { notificationService } from "@/lib/notifications";
+import { useToast } from "@/hooks/use-toast";
 
 export default function DashboardPage() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const { data: currentCycle, isLoading: cycleLoading } = useQuery<any>({
     queryKey: ["/api/cycles/current"],
@@ -27,6 +32,31 @@ export default function DashboardPage() {
 
   const recentSymptoms = symptoms?.slice(0, 3) || [];
   const cycleInsights = calculateCycleInsights(periods);
+
+  // Schedule period reminders when insights are available  
+  useEffect(() => {
+    const scheduleNotifications = async () => {
+      if (insights?.nextPeriodDate && insights.daysUntilNext > 0) {
+        try {
+          const settings = await notificationService.getNotificationSettings();
+          if (settings.periodReminders) {
+            // Cancel existing period reminder before scheduling new one to prevent duplicates
+            await notificationService.cancelPeriodReminder();
+            await notificationService.schedulePeriodReminder(insights.nextPeriodDate, settings);
+          }
+        } catch (error) {
+          console.error('Failed to schedule period reminder:', error);
+          toast({
+            title: "Period Reminder",
+            description: (error as Error).message || "Failed to schedule period reminder",
+            variant: "destructive"
+          });
+        }
+      }
+    };
+
+    scheduleNotifications();
+  }, [insights?.nextPeriodDate, insights?.daysUntilNext]);
 
   const calculateCurrentCycleDay = () => {
     if (!currentCycle?.startDate) return 1;
@@ -415,6 +445,9 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Notification Settings */}
+      <NotificationSettings />
 
       {/* Recent Activity */}
       <Card>
