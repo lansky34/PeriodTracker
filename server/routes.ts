@@ -5,6 +5,7 @@ import { insertUserSchema, loginUserSchema, insertCycleSchema, insertPeriodSchem
 import bcrypt from "bcrypt";
 import session from "express-session";
 import MemoryStore from "memorystore";
+import cors from "cors";
 
 const MemoryStoreConstructor = MemoryStore(session);
 
@@ -15,18 +16,42 @@ declare module "express-session" {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Trust proxy for HTTPS
+  app.set('trust proxy', 1);
+  
+  // CORS middleware for Capacitor mobile apps
+  app.use(cors({
+    origin: [
+      'http://localhost:5000',
+      'https://localhost:5000',
+      'capacitor://localhost',
+      'ionic://localhost',
+      'http://localhost',
+      'https://localhost'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
+  }));
+  
   // Session middleware
   app.use(session({
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    secret: process.env.SESSION_SECRET || (() => {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('SESSION_SECRET environment variable is required in production');
+      }
+      return 'dev-secret-key-change-in-production';
+    })(),
     resave: false,
     saveUninitialized: false,
     store: new MemoryStoreConstructor({
       checkPeriod: 86400000 // prune expired entries every 24h
     }),
     cookie: {
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
-      maxAge: 1000 * 60 * 60 * 24 * 7 // 1 week
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
     }
   }));
 
