@@ -49,10 +49,12 @@ export default function Navigation() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem data-testid="button-settings">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </DropdownMenuItem>
+                <Link href="/settings">
+                  <DropdownMenuItem data-testid="button-settings">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
+                  </DropdownMenuItem>
+                </Link>
                 <DropdownMenuItem onClick={handleLogout} data-testid="button-logout">
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout

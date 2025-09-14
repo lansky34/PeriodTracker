@@ -9,10 +9,19 @@ import DashboardPage from "./pages/dashboard.js";
 import CalendarPage from "./pages/calendar.js";
 import SymptomsPage from "./pages/symptoms.js";
 import InsightsPage from "./pages/insights.js";
+import SettingsPage from "./pages/settings.js";
 import Navigation from "./components/navigation.js";
 import NotFound from "@/pages/not-found";
+import { useEffect } from 'react';
+import { themeService } from '@/lib/themes';
 
 function AuthenticatedApp() {
+  // Initialize theme on app start
+  useEffect(() => {
+    const savedTheme = themeService.getStoredTheme();
+    themeService.applyTheme(savedTheme);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -23,6 +32,7 @@ function AuthenticatedApp() {
           <Route path="/calendar" component={CalendarPage} />
           <Route path="/symptoms" component={SymptomsPage} />
           <Route path="/insights" component={InsightsPage} />
+          <Route path="/settings" component={SettingsPage} />
           <Route component={NotFound} />
         </Switch>
       </main>

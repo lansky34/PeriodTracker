@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, ReactNode } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Check, Crown, Sparkles } from 'lucide-react';
 import { purchasesService } from '@/lib/purchases';
 import { adMobService } from '@/lib/admob';
@@ -46,9 +47,10 @@ const proFeatures = [
 interface SubscriptionPaywallProps {
   onClose?: () => void;
   onPurchaseSuccess?: () => void;
+  trigger?: ReactNode;
 }
 
-export function SubscriptionPaywall({ onClose, onPurchaseSuccess }: SubscriptionPaywallProps) {
+export function SubscriptionPaywall({ onClose, onPurchaseSuccess, trigger }: SubscriptionPaywallProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -104,9 +106,8 @@ export function SubscriptionPaywall({ onClose, onPurchaseSuccess }: Subscription
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" data-testid="subscription-paywall">
-      <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+  const paywallContent = (
+    <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center mb-2">
             <Crown className="h-8 w-8 text-amber-500 mr-2" />
@@ -205,6 +206,24 @@ export function SubscriptionPaywall({ onClose, onPurchaseSuccess }: Subscription
           </div>
         </CardContent>
       </Card>
+  );
+
+  if (trigger) {
+    return (
+      <Dialog>
+        <DialogTrigger asChild>
+          {trigger}
+        </DialogTrigger>
+        <DialogContent className="p-0 max-w-lg" data-testid="subscription-paywall">
+          {paywallContent}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" data-testid="subscription-paywall">
+      {paywallContent}
     </div>
   );
 }
