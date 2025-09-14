@@ -35,7 +35,7 @@ jobs:
 
       - name: Clean build
         working-directory: android
-        run: ./gradlew clean
+        run: ./gradlew -Dorg.gradle.ignoreBuildScriptRepositories=false clean
 
       - name: Build Release AAB
         working-directory: android
@@ -43,7 +43,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew bundleRelease --stacktrace --info
+        run: ./gradlew -Dorg.gradle.ignoreBuildScriptRepositories=false bundleRelease --stacktrace --info
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
