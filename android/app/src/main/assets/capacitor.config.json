@@ -1,0 +1,5 @@
+{
+	"appId": "xyz.flowtracker.app",
+	"appName": "FlowTracker",
+	"webDir": "dist/public"
+}
