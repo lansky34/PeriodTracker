@@ -1,5 +1,4 @@
-name: Android Build
-
+name: Build Android APK
 on:
   workflow_dispatch:
   push:
@@ -13,17 +12,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         
-      - name: Set up JDK 17
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Setup Java 21 (Required for Capacitor)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
           
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         
       - name: Accept Android SDK licenses
         run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+        
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build
+          
+      - name: Sync Capacitor (Critical Step)
+        run: npx cap sync android
         
       - name: Decode keystore
         working-directory: android
@@ -32,18 +45,6 @@ jobs:
       - name: Grant execute permission for gradlew
         working-directory: android
         run: chmod +x ./gradlew
-
-      - name: Gradle diagnostics
-        working-directory: android
-        run: |
-          ./gradlew -v
-          ./gradlew buildEnvironment --stacktrace
-          echo "=== Settings ==="
-          cat settings.gradle
-          echo "=== Build ==="
-          cat build.gradle
-          echo "=== App Build ==="
-          cat app/build.gradle
         
       - name: Build Release AAB
         working-directory: android
@@ -51,7 +52,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew bundleRelease --stacktrace --info
+        run: ./gradlew bundleRelease --stacktrace
         
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
