@@ -6,6 +6,17 @@ pluginManagement {
     }
 }
 
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        google()
+        mavenCentral()
+        flatDir {
+            dirs 'libs'
+        }
+    }
+}
+
 rootProject.name = "FlowTracker"
 include ':app'
 include ':capacitor-cordova-android-plugins'
