@@ -9,38 +9,58 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-      WORKING_DIR: YOUR_ANDROID_DIR  # e.g. android or mobile/android
-
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
+      # Show what files actually exist (super helpful)
+      - name: List repository files
+        run: |
+          echo "== Repo root =="
+          ls -la
+          echo "== android/ =="
+          ls -la android || true
+
+      # Detect where the Android project lives
+      - name: Detect Android directory
+        id: detect
+        shell: bash
+        run: |
+          if [ -f "./gradlew" ]; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+            echo "Found gradlew at repo root"
+          elif [ -f "android/gradlew" ]; then
+            echo "dir=android" >> "$GITHUB_OUTPUT"
+            echo "Found gradlew in android/"
+          else
+            echo "dir=" >> "$GITHUB_OUTPUT"
+            echo "No gradlew found. This repo does not contain an Android project." >&2
+            exit 1
+          fi
+
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      - name: Ensure gradlew is executable
-        run: chmod +x ./gradlew
-        working-directory: ${{ env.WORKING_DIR }}
-
       - name: Decode keystore
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > my-release-key.jks
-        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+        working-directory: ${{ steps.detect.outputs.dir }}
 
       - name: Build Release AAB
-        run: ./gradlew bundleRelease
-        working-directory: ${{ env.WORKING_DIR }}
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS:         ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD:      ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease
+        working-directory: ${{ steps.detect.outputs.dir }}
 
       - name: Upload AAB
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: release-aab
-          path: ${{ env.WORKING_DIR }}/app/build/outputs/bundle/release/*.aab
-
+          path: ${{ steps.detect.outputs.dir }}/app/build/outputs/bundle/release/*.aab
