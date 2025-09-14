@@ -71,10 +71,14 @@ function ProUpgradePrompt({ feature, description }: { feature: string; descripti
               data-testid="button-upgrade-pro"
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              Upgrade to Pro
+              Start Free Trial
             </Button>
           }
         />
+        
+        <div className="mt-3 text-xs text-amber-600 dark:text-amber-400">
+          7 days free, then $4.99/month • Cancel anytime
+        </div>
       </CardContent>
     </Card>
   );
