@@ -107,7 +107,7 @@ class PurchasesService {
       await this.initialize();
       // Get offerings from RevenueCat v11 response structure
       const result = await Purchases.getOfferings();
-      return result.offerings;
+      return result;
     } catch (error) {
       console.error('Failed to get offerings:', error);
       return null;
@@ -138,8 +138,8 @@ class PurchasesService {
         throw new Error(`Package ${packageIdentifier} not found`);
       }
       
-      // Use purchasePackage for proper RevenueCat integration
-      const result = await Purchases.purchasePackage({ aPackage: targetPackage });
+      // Use purchasePackage for proper RevenueCat integration  
+      const result = await Purchases.purchasePackage(targetPackage);
       return result;
     } catch (error) {
       console.error('Purchase failed:', error);
@@ -162,9 +162,101 @@ class PurchasesService {
     }
   }
 
+  // Trial-aware Pro state management
+  async getProState() {
+    if (!Capacitor.isNativePlatform()) {
+      const isDebugPro = localStorage.getItem('debug_pro') === 'true';
+      return { 
+        isPro: isDebugPro, 
+        isTrialActive: false,
+        trialDaysRemaining: 0,
+        activeUntil: isDebugPro ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) : null
+      };
+    }
+
+    try {
+      await this.initialize();
+      const info = await Purchases.getCustomerInfo();
+      
+      // Check for active Pro entitlement (includes trial and paid)
+      const proEntitlement = info.entitlements.active["pro"];
+      const isPro = !!proEntitlement;
+      
+      let isTrialActive = false;
+      let trialDaysRemaining = 0;
+      let activeUntil = null;
+
+      if (proEntitlement) {
+        activeUntil = new Date(proEntitlement.expirationDate || proEntitlement.latestPurchaseDate);
+        
+        // Check if this is a trial period
+        isTrialActive = proEntitlement.periodType === "trial";
+        
+        if (isTrialActive && activeUntil) {
+          const now = new Date();
+          const msRemaining = activeUntil.getTime() - now.getTime();
+          trialDaysRemaining = Math.max(0, Math.ceil(msRemaining / (24 * 60 * 60 * 1000)));
+        }
+      }
+
+      return {
+        isPro,
+        isTrialActive,
+        trialDaysRemaining,
+        activeUntil
+      };
+    } catch (error) {
+      console.error('Failed to get Pro state:', error);
+      return { 
+        isPro: false, 
+        isTrialActive: false,
+        trialDaysRemaining: 0,
+        activeUntil: null
+      };
+    }
+  }
+
+  // Cache Pro state in secure storage
+  async cacheProState(state: any) {
+    try {
+      localStorage.setItem('flowtracker_pro_cache', JSON.stringify({
+        ...state,
+        cachedAt: Date.now()
+      }));
+    } catch (error) {
+      console.error('Failed to cache Pro state:', error);
+    }
+  }
+
+  async getCachedProState() {
+    try {
+      const cached = localStorage.getItem('flowtracker_pro_cache');
+      if (!cached) return null;
+      
+      const data = JSON.parse(cached);
+      const cacheAge = Date.now() - (data.cachedAt || 0);
+      
+      // Cache expires after 1 hour
+      if (cacheAge > 60 * 60 * 1000) {
+        return null;
+      }
+      
+      return {
+        isPro: data.isPro,
+        isTrialActive: data.isTrialActive,
+        trialDaysRemaining: data.trialDaysRemaining,
+        activeUntil: data.activeUntil ? new Date(data.activeUntil) : null
+      };
+    } catch (error) {
+      console.error('Failed to get cached Pro state:', error);
+      return null;
+    }
+  }
+
   // Helper to clear debug pro status for testing
   clearDebugPro() {
     localStorage.removeItem('debug_pro');
+    localStorage.removeItem('flowtracker_pro_cache');
   }
 }
 

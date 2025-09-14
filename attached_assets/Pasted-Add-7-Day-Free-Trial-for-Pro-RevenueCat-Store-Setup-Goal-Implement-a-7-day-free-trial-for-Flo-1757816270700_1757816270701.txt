@@ -1,0 +1,170 @@
+Add 7-Day Free Trial for Pro (RevenueCat + Store Setup)”
+
+Goal: Implement a 7-day free trial for FlowTracker Pro using RevenueCat (StoreKit + Google Play Billing), gate features with a single isPro flag (trial counts as Pro), and ensure no ads show during trial or after purchase. Produce UI, backend glue, tests, and store metadata updates.
+
+Context:
+
+Stack: Capacitor/Ionic (TS).
+
+Current Pro features to unlock:
+
+Advanced Analytics & Insights (charts/trends)
+
+Data Export (CSV/PDF)
+
+Custom Themes
+
+Ad-Free Experience
+
+Fill these values:
+
+Android package: 🔲 com.<org>.flowtracker
+
+iOS bundle ID: 🔲 com.<org>.flowtracker
+
+Support email: 🔲
+
+Privacy Policy URL (live): 🔲
+
+Terms URL (live): 🔲
+
+Tasks
+0) Dependencies & config
+
+Confirm RevenueCat plugin installed (purchases-capacitor); if missing, add it.
+
+Add .env.release keys: REVENUECAT_API_KEY, flags ADS_ENABLED=true, feature flags FEATURE_INSIGHTS/EXPORT/THEMES=true.
+
+Centralize entitlement gate:
+
+export async function getProState() {
+  const info = await Purchases.getCustomerInfo();
+  const isPro = !!info.entitlements.active["pro"]; // includes trial
+  return { isPro, activeUntil: info.latestExpirationDate };
+}
+
+
+Cache last value in secure storage; refresh on app start and after purchase/restore.
+
+1) RevenueCat project & products (automate docs + checklist)
+
+Create/verify Entitlement: pro.
+
+Create Offering: default with two Packages:
+
+monthly → product IDs:
+
+iOS: flowtracker_pro_monthly (intro offer: 7-day free trial)
+
+Android: flowtracker_pro_monthly (intro: free trial 7 days)
+
+annual → product IDs:
+
+iOS: flowtracker_pro_yearly (optional intro: 7-day trial or first-year discount)
+
+Android: flowtracker_pro_yearly (same)
+
+Generate REVENUECAT_SETUP.md with exact steps to add trial in App Store Connect and Play Console (Introductory Offer / Free Trial), and how to sync products to RC.
+
+2) Paywall with 7-day trial
+
+Build a Paywall screen that fetches offerings.current.availablePackages and renders:
+
+“Start 7-day free trial → then $X.XX/month or $XX.XX/year, cancel anytime.”
+
+Feature bullets (Insights, Export, Themes, Ad-Free).
+
+Buttons: Start Free Trial, See Annual Plan, Restore Purchases, Maybe later.
+
+Purchase flow:
+
+const { customerInfo } = await Purchases.purchasePackage(pkg);
+const isPro = !!customerInfo.entitlements.active["pro"];
+// On success: update state, hide ads immediately, unlock features, toast “Trial activated”.
+
+
+Restore: await Purchases.restorePurchases(); then refresh gates.
+
+Edge cases UI: canceled, billing unavailable, already subscribed, trial ineligible (store rules).
+
+3) Feature gating + ad removal
+
+Wrap Pro features in a single hook/guard using getProState(); show lock UI for non-Pro.
+
+Ads: Initialize AdMob only if isPro === false and ADS_ENABLED === true.
+
+During trial (isPro===true), no ad SDK init and no ad containers.
+
+Ensure no layout gaps when banners are absent.
+
+4) Trial lifecycle UX
+
+In Settings → Subscription, display:
+
+Pro Trial: X days left (compute from activeUntil).
+
+Manage Subscription buttons (deep link to App Store / Play Manage Subscriptions).
+
+Reminder notifications (local):
+
+Day 5 of trial: “Your Pro trial ends in 2 days—keep Insights, Export & Themes.”
+
+Day 7 morning: “Trial ends today—continue Pro to stay ad-free.”
+
+If subscription lapses: gracefully revert to Free, show soft upsell card (no hard wall).
+
+5) Compliance & copy
+
+Update Privacy Policy and Terms with: subscriptions, trials, auto-renew, cancellation instructions, ads for Free. Output in STORE_LISTING/LEGAL_UPDATES.md.
+
+Add Restore Purchases entry in help/FAQ.
+
+For iOS, include IDFA disclosures if ads are used in Free tier; for Android, set Data Safety answers (ads + purchases).
+
+6) Store listing updates
+
+Create/refresh STORE_LISTING/:
+
+short_description.txt (Play): “Track cycles & fertility. Try Pro free for 7 days—Insights, Export, Themes, No ads.”
+
+subtitle.txt (iOS): “7-day Pro trial: insights, export & ad-free.”
+
+full_description.txt / app_store_description.txt with clear trial/price/cancel text.
+
+Screenshots with “7-Day Free Trial” badge and Pro feature highlights.
+
+PRICING.md with localizable price placeholders.
+
+7) Testing matrix (sandbox)
+
+Create QA_TRIAL_TESTS.md and run through:
+
+New user → starts trial → Pro gates open, ads off.
+
+Mid-trial (Day 3) relaunch: still Pro, ads off.
+
+Trial end → converts: remains Pro, ads off.
+
+Trial end → no conversion: revert to Free, ads on.
+
+Restore on new device: Pro recognized.
+
+Offline behavior: last known Pro keeps features until refresh.
+
+8) Outputs
+
+Updated code with getProState() gate, Paywall UI, Settings page, trial reminders.
+
+REVENUECAT_SETUP.md, AD_IMPLEMENTATION.md, SUBMISSION_CHECKLIST.md, STORE_LISTING/*, LEGAL_UPDATES.md, QA_TRIAL_TESTS.md.
+
+Print console summary with any unresolved placeholders.
+
+Acceptance criteria
+
+isPro true for active trial or paid sub; no ad SDK initialized; Pro features fully available.
+
+Trial start, cancel, expire, restore all handled without crashes.
+
+Store texts clearly disclose trial → auto-renew → cancel anytime.
+
+All docs generated with next actions and deep links.

@@ -21,13 +21,13 @@ const plans: SubscriptionPlan[] = [
   {
     id: 'monthly_pro',
     name: 'Monthly Pro',
-    price: '$4.99',
+    price: 'Free for 7 days, then $4.99',
     period: 'per month',
   },
   {
     id: 'annual_pro', 
     name: 'Annual Pro',
-    price: '$39.99',
+    price: 'Free for 7 days, then $39.99',
     period: 'per year',
     savings: 'Save 33%',
     popular: true,
@@ -35,13 +35,16 @@ const plans: SubscriptionPlan[] = [
 ];
 
 const proFeatures = [
-  'Remove all ads',
-  'Advanced cycle analytics',
-  'Custom reminder schedules',
-  'Export data to CSV',
-  'Priority customer support',
-  'Unlimited symptom tracking',
-  'Personalized insights',
+  '7-day free trial - cancel anytime',
+  'Remove all ads immediately',
+  'Advanced cycle analytics & insights',
+  'AI Health Coach recommendations',
+  'Partner sharing & communication',
+  'Advanced fertility tracking',
+  'Health device integration',
+  'PCOS & endometriosis support',
+  'Enhanced data export (PDF/CSV)',
+  'Premium themes & customization',
 ];
 
 interface SubscriptionPaywallProps {
@@ -64,8 +67,8 @@ export function SubscriptionPaywall({ onClose, onPurchaseSuccess, trigger }: Sub
       await adMobService.refreshProStatus();
       
       toast({
-        title: "Welcome to Pro!",
-        description: "Your subscription is now active. Enjoy ad-free tracking with premium features!",
+        title: "Free Trial Started! 🎉",
+        description: "Your 7-day Pro trial is now active. Enjoy all premium features ad-free!",
       });
       
       onPurchaseSuccess?.();
@@ -111,10 +114,10 @@ export function SubscriptionPaywall({ onClose, onPurchaseSuccess, trigger }: Sub
         <CardHeader className="text-center">
           <div className="flex items-center justify-center mb-2">
             <Crown className="h-8 w-8 text-amber-500 mr-2" />
-            <CardTitle className="text-2xl">Upgrade to Pro</CardTitle>
+            <CardTitle className="text-2xl">Start Your Free Trial</CardTitle>
           </div>
           <CardDescription>
-            Get the most out of FlowTracker with premium features and an ad-free experience
+            7 days of FlowTracker Pro absolutely free. Cancel anytime, no commitment required.
           </CardDescription>
         </CardHeader>
         
@@ -168,7 +171,7 @@ export function SubscriptionPaywall({ onClose, onPurchaseSuccess, trigger }: Sub
                     variant={plan.popular ? "default" : "outline"}
                     data-testid={`button-purchase-${plan.id}`}
                   >
-                    {loading === plan.id ? 'Processing...' : 'Subscribe'}
+                    {loading === plan.id ? 'Starting Trial...' : 'Start Free Trial'}
                   </Button>
                 </div>
               </div>
