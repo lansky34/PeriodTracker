@@ -7,6 +7,16 @@ buildscript {
     }
 }
 
+subprojects {
+    buildscript {
+        repositories {
+            google()
+            mavenCentral()
+            gradlePluginPortal()
+        }
+    }
+}
+
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
