@@ -32,6 +32,18 @@ jobs:
       - name: Grant execute permission for gradlew
         working-directory: android
         run: chmod +x ./gradlew
+
+      - name: Gradle diagnostics
+        working-directory: android
+        run: |
+          ./gradlew -v
+          ./gradlew buildEnvironment --stacktrace
+          echo "=== Settings ==="
+          cat settings.gradle
+          echo "=== Build ==="
+          cat build.gradle
+          echo "=== App Build ==="
+          cat app/build.gradle
         
       - name: Build Release AAB
         working-directory: android
