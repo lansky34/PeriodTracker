@@ -37,9 +37,10 @@ export function usePro() {
       }
     } catch (error) {
       console.error('Error checking Pro status:', error);
-      // Fallback to localStorage check
+      // Fallback to localStorage check (development only)
+      const isDebugPro = import.meta.env.DEV && localStorage.getItem('debug_pro') === 'true';
       const fallbackState = {
-        isPro: localStorage.getItem('debug_pro') === 'true',
+        isPro: isDebugPro,
         isTrialActive: false,
         trialDaysRemaining: 0,
         activeUntil: null

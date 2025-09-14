@@ -165,7 +165,8 @@ class PurchasesService {
   // Trial-aware Pro state management
   async getProState() {
     if (!Capacitor.isNativePlatform()) {
-      const isDebugPro = localStorage.getItem('debug_pro') === 'true';
+      // Debug Pro only available in development
+      const isDebugPro = import.meta.env.DEV && localStorage.getItem('debug_pro') === 'true';
       return { 
         isPro: isDebugPro, 
         isTrialActive: false,
