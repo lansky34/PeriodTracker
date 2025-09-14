@@ -1,0 +1,75 @@
+Problem Description
+
+Your Gradle build is failing with an error related to repository configuration, specifically:
+
+
+Build was configured to prefer settings repositories over project repositories but repository 'Google' was added by build file 'build.gradle'
+
+This error indicates that your project is attempting to declare a repository (like google() or mavenCentral()) within a build.gradle file, while your Gradle setup (likely version 7.0 or newer) expects all repositories to be declared centrally in the settings.gradle file.
+
+Why This Happens
+
+Starting with Gradle 7.0, there was a significant change in how dependency repositories are managed. The recommended and often enforced practice is to declare all repositories in the dependencyResolutionManagement block within your settings.gradle file. This centralizes repository management, making builds more consistent and secure. When repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS) is enabled (which is common in newer projects or after upgrades), Gradle will explicitly fail the build if it finds any repository declarations in individual build.gradle files.
+
+Solution: Centralize Repository Declarations
+
+To resolve this issue, you need to perform two main steps:
+
+Step 1: Remove Repository Declarations from build.gradle Files
+
+Navigate through your project and locate all build.gradle files (both the root-level build.gradle and any module-level build.gradle files, e.g., android/app/build.gradle). In these files, you need to remove any repositories blocks.
+
+Example of what to remove:
+
+Plain Text
+
+
+// In build.gradle (Project: YourProject) or module-level build.gradle
+
+// DELETE THIS BLOCK if found
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        // Any other repositories like jcenter(), maven { url '...' } etc.
+    }
+}
+
+// DELETE THIS BLOCK if found in module-level build.gradle
+repositories {
+    mavenCentral()
+}
+
+
+Step 2: Add Repositories to settings.gradle
+
+Open your settings.gradle file (typically located at the root of your project, e.g., android/settings.gradle). You need to add or modify the dependencyResolutionManagement block to include all the repositories that were previously scattered across your build.gradle files.
+
+Example of what to add/modify in settings.gradle:
+
+Plain Text
+
+
+// In settings.gradle
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        // Add any other repositories you were using in your build.gradle files.
+        // For example, if you had jcenter() or a custom maven URL:
+        // jcenter()
+        // maven { url 'https://jitpack.io' }
+    }
+}
+
+
+Important Notes:
+
+•
+Ensure that repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS) is present. This is what enforces the centralized repository management.
+
+•
+Include all necessary repositories (e.g., google(), mavenCentral(), jcenter(), custom Maven URLs) within this single repositories block in settings.gradle.
+
