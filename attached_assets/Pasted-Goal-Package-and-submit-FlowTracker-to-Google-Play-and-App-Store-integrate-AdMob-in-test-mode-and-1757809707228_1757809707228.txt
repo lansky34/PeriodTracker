@@ -1,0 +1,140 @@
+Goal: Package and submit FlowTracker to Google Play and App Store, integrate AdMob in test mode, and enforce no ads for paid (Pro) users. Produce signed builds, store listings, and a submission checklist.
+
+App info (pre-filled):
+
+App name: FlowTracker
+
+Android package: xyz.flowtracker.app
+
+iOS bundle ID: xyz.flowtracker.app
+
+Version: 1.0.0 • Build: 1
+
+Website: https://flowtracker.xyz
+
+Support email: support@flowtracker.xyz
+
+Privacy Policy URL: https://flowtracker.xyz/privacy
+
+Monetization: Subscriptions via RevenueCat (entitlement pro)
+
+Ads: Google AdMob (test IDs until production approval)
+
+Tasks
+
+Project sanity + env
+
+npm ci → npx cap sync ios android.
+
+Create .env.release; move any secrets out of repo.
+
+Feature flags: ADS_ENABLED=true, IAP_ENABLED=true.
+
+Ensure RevenueCat (purchases-capacitor) is installed and initialized before any ad SDK.
+
+AdMob integration (TEST MODE)
+
+Add @capacitor-community/admob (Android+iOS).
+
+Use Google test ad unit IDs (banner/interstitial/rewarded).
+
+Implement single gate after Purchases.configure(...):
+
+const info = await Purchases.getCustomerInfo();
+const isPro = !!info.entitlements.active["pro"];
+if (!isPro && process.env.ADS_ENABLED === 'true') await AdMob.initialize();
+
+
+Hide/remove ad containers entirely when isPro === true.
+
+Android: add UMP (consent). iOS: add ATT usage string if personalized ads; set SKAdNetworkItems for AdMob.
+
+IAP (RevenueCat)
+
+Project key env var(s).
+
+Fetch offerings → show paywall with dynamic price.
+
+Purchase + Restore; update UI state to remove ads immediately.
+
+(If backend exists) register RevenueCat webhook and log entitlement changes.
+
+Android release
+
+Configure versionCode/Name.
+
+Create/attach Play App Signing keystore; output SHA-1.
+
+Build app-release.aab (minify/proguard on).
+
+Prepare Play Console Internal testing upload.
+
+iOS release
+
+Set version/build in Xcode; Distribution profile.
+
+Add AdMob iOS frameworks + SKAdNetwork IDs.
+
+Archive and export IPA for App Store Connect / TestFlight.
+
+Store listings (generate assets + copy)
+
+Create STORE_LISTING/ with: icons, feature graphic (Play), screenshots (iPhone 6.7/6.1/5.5, iPad 12.9 if used; Android phone/tablet).
+
+Use the copy below (place into metadata):
+
+App Store short description / Subtitle:
+“Smart cycle & symptom tracker with private reminders.”
+
+Play short description (≤80):
+“Private period & symptom tracking with smart reminders. Go Pro to remove ads.”
+
+Long description (both stores):
+“FlowTracker is your private period companion. Log cycles, symptoms, moods, and medications. Get smart reminders for upcoming periods, fertile windows, and custom notes. Free tier includes tasteful ads to keep the app accessible. FlowTracker Pro removes all ads, unlocks advanced analytics, custom reminder schedules, and priority support.”
+
+What’s new (v1.0):
+“Initial release with cycle logging, symptom tags, calendar, and reminder scheduling.”
+
+Keywords (Apple):
+period tracker, menstrual cycle, fertility, ovulation, reminders, women health, calendar
+
+Promo text:
+“Try Pro free—ad-free experience, advanced insights, and premium reminders.”
+
+Policy forms & access
+
+Google Play: Data Safety (ads = yes, analytics = yes), content rating, target audience, App Access test account (include demo email/password).
+
+App Store: App Privacy (data types), IDFA if personalized ads, “Restore Purchases” present.
+
+Ensure descriptions disclose: “Free tier contains ads; Pro removes ads.”
+
+Submission
+
+Upload AAB to Play (Internal test) and IPA to TestFlight.
+
+Create internal testers and start review.
+
+Generate SUBMISSION_CHECKLIST.md listing links to consoles, asset folders, tester creds, and policy status.
+
+Post-approval switch
+
+Provide AD_IDS.md and a script/doc to replace test IDs with production AdMob unit IDs, bump version (1.0.1), and resubmit.
+
+Acceptance Criteria
+
+Pro users: no Ad SDK init, no ad requests, no layout gaps (containers removed).
+
+Free users: frequency caps respected; no interstitials on first launch, purchase, or core flows.
+
+Offline: last known isPro keeps ads off.
+
+Deliverables: app-release.aab, TestFlight build # (or IPA), STORE_LISTING/, AD_IMPLEMENTATION.md, SUBMISSION_CHECKLIST.md.
+
+Notes
+
+Use only Google test ad IDs until both stores approve.
+
+If ATT is declined on iOS, serve non-personalized ads.
+
+Keep support links: Website: flowtracker.xyz • Email: support@flowtracker.xyz

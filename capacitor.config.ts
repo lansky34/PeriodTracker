@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.flowtracker.app',
+  appId: 'xyz.flowtracker.app',
   appName: 'FlowTracker',
   webDir: 'dist/public'
 };

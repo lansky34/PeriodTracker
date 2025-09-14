@@ -1,0 +1,48 @@
+# App Store Connect Metadata for FlowTracker
+
+## App Information
+App Name: FlowTracker
+Bundle ID: xyz.flowtracker.app
+Version: 1.0.0
+Build: 1
+
+## App Store Subtitle (30 characters max)
+Smart cycle & symptom tracker with private reminders.
+
+## Keywords (100 characters max, comma-separated)
+period tracker, menstrual cycle, fertility, ovulation, reminders, women health, calendar
+
+## Promotional Text (170 characters max)
+Try Pro free—ad-free experience, advanced insights, and premium reminders.
+
+## Description
+FlowTracker is your private period companion. Log cycles, symptoms, moods, and medications. Get smart reminders for upcoming periods, fertile windows, and custom notes. Free tier includes tasteful ads to keep the app accessible. FlowTracker Pro removes all ads, unlocks advanced analytics, custom reminder schedules, and priority support.
+
+## What's New (4000 characters max)
+Initial release with cycle logging, symptom tags, calendar, and reminder scheduling.
+
+## App Privacy
+- Data Types Collected: Health and Fitness data, Usage data
+- Data Linked to User: Health tracking information
+- Data Not Linked to User: Analytics and performance data
+- IDFA Usage: Yes (for personalized ads in free tier)
+
+## App Review Information
+- Contact Information: support@flowtracker.xyz
+- Demo Account: Not required for basic functionality
+- Review Notes: Free tier displays ads; Pro subscription removes ads and unlocks premium features
+
+## Age Rating
+- Primary Category: Medical
+- Secondary Category: Health & Fitness
+- Age Rating: 12+ (Medical/Treatment Information)
+
+## Pricing and Availability
+- Price: Free with in-app purchases
+- Subscriptions: Monthly Pro ($4.99/month), Annual Pro ($39.99/year)
+- Availability: Worldwide
+
+## Support URLs
+- Website: https://flowtracker.xyz
+- Privacy Policy: https://flowtracker.xyz/privacy  
+- Support: support@flowtracker.xyz

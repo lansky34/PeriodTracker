@@ -1,0 +1,57 @@
+# Google Play Console Metadata for FlowTracker
+
+## App Information  
+Package Name: xyz.flowtracker.app
+App Name: FlowTracker
+Version: 1.0.0
+Version Code: 1
+
+## Short Description (80 characters max)
+Private period & symptom tracking with smart reminders. Go Pro to remove ads.
+
+## Full Description (4000 characters max)
+FlowTracker is your private period companion. Log cycles, symptoms, moods, and medications. Get smart reminders for upcoming periods, fertile windows, and custom notes. Free tier includes tasteful ads to keep the app accessible. FlowTracker Pro removes all ads, unlocks advanced analytics, custom reminder schedules, and priority support.
+
+## What's New (500 characters max)
+Initial release with cycle logging, symptom tags, calendar, and reminder scheduling.
+
+## Content Rating
+- Target Age Group: Teen (13+)
+- Content Rating: Everyone
+- Ads: Yes (free tier contains ads)
+- In-App Purchases: Yes (Pro subscription)
+
+## Data Safety
+- Data Collection: Yes
+- Data Sharing: No
+- Data Encryption: Yes
+- User Controls: Users can request data deletion
+- Data Types:
+  - Personal Info: None collected
+  - Health and Fitness: Period dates, symptoms, moods (stored locally and encrypted)
+  - App Activity: Usage analytics (anonymous)
+- Data Usage: All health data stays on device; only anonymous analytics shared
+
+## Store Listing
+- Category: Health & Fitness
+- Tags: period tracker, menstrual health, fertility, women's health
+- Content Rating: Everyone
+- Ads Declaration: Yes, contains ads
+- Target Audience: Anyone (primarily women 13+)
+
+## Developer Information
+- Developer Name: FlowTracker
+- Website: https://flowtracker.xyz
+- Email: support@flowtracker.xyz
+- Privacy Policy: https://flowtracker.xyz/privacy
+
+## Pricing
+- App Price: Free
+- In-App Products:
+  - Monthly Pro: $4.99/month (removes ads, premium features)
+  - Annual Pro: $39.99/year (removes ads, premium features, saves 33%)
+
+## Distribution
+- Countries: Worldwide
+- Android Devices: Phone and Tablet
+- Minimum SDK: API 24 (Android 7.0)

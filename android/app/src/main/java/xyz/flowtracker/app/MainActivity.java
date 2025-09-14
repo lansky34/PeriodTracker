@@ -1,4 +1,4 @@
-package com.flowtracker.app;
+package xyz.flowtracker.app;
 
 import com.getcapacitor.BridgeActivity;
 
