@@ -1,15 +1,11 @@
+plugins {
+    id 'com.android.library'
+}
+
 ext {
     androidxAppCompatVersion = project.hasProperty('androidxAppCompatVersion') ? rootProject.ext.androidxAppCompatVersion : '1.7.0'
     cordovaAndroidVersion = project.hasProperty('cordovaAndroidVersion') ? rootProject.ext.cordovaAndroidVersion : '10.1.1'
 }
-
-buildscript {
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.7.2'
-    }
-}
-
-apply plugin: 'com.android.library'
 
 android {
     namespace "capacitor.cordova.android.plugins"
