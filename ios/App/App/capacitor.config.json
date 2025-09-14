@@ -1,0 +1,10 @@
+{
+	"appId": "xyz.flowtracker.app",
+	"appName": "FlowTracker",
+	"webDir": "dist/public",
+	"packageClassList": [
+		"AdMobPlugin",
+		"LocalNotificationsPlugin",
+		"PurchasesPlugin"
+	]
+}
