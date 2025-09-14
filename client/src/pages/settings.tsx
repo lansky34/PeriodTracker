@@ -2,13 +2,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Settings, User, Palette, Bell, Shield, Crown, Sparkles } from 'lucide-react';
+import { Settings, User, Palette, Bell, Shield, Crown, Sparkles, Calendar, Clock, ExternalLink } from 'lucide-react';
 import { ThemeSelector } from '@/components/theme-selector';
 import { usePro } from '@/hooks/use-pro';
 import { SubscriptionPaywall } from '@/components/subscription-paywall';
 
 export default function SettingsPage() {
-  const { isPro } = usePro();
+  const { isPro, isTrialActive, trialDaysRemaining, activeUntil, refreshProStatus } = usePro();
+
+  const handleManageSubscription = () => {
+    // Deep link to platform subscription management
+    if (typeof window !== 'undefined') {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isAndroid = /Android/.test(navigator.userAgent);
+      
+      if (isIOS) {
+        window.open('https://apps.apple.com/account/subscriptions', '_blank');
+      } else if (isAndroid) {
+        window.open('https://play.google.com/store/account/subscriptions', '_blank');
+      }
+    }
+  };
 
   return (
     <div className="p-4 space-y-6 max-w-4xl mx-auto">
@@ -22,9 +36,11 @@ export default function SettingsPage() {
           <p className="text-muted-foreground">Customize your FlowTracker experience</p>
         </div>
         {isPro && (
-          <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+          <Badge className={`text-white ${isTrialActive 
+            ? 'bg-gradient-to-r from-blue-500 to-purple-500' 
+            : 'bg-gradient-to-r from-amber-500 to-orange-500'}`}>
             <Crown className="w-4 h-4 mr-1" />
-            Pro User
+            {isTrialActive ? `Pro Trial (${trialDaysRemaining} days)` : 'Pro User'}
           </Badge>
         )}
       </div>
@@ -38,10 +54,10 @@ export default function SettingsPage() {
                 <Sparkles className="w-8 h-8 text-amber-600 mr-3" />
                 <div>
                   <h3 className="font-semibold text-amber-800 dark:text-amber-200">
-                    Upgrade to FlowTracker Pro
+                    Start Your Free Trial
                   </h3>
                   <p className="text-amber-700 dark:text-amber-300 text-sm">
-                    Unlock advanced insights, custom themes, data export, and remove ads
+                    7 days free, then unlock all premium features for just $4.99/month
                   </p>
                 </div>
               </div>
@@ -49,28 +65,93 @@ export default function SettingsPage() {
                 trigger={
                   <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white">
                     <Crown className="w-4 h-4 mr-2" />
-                    Upgrade Now
+                    Start Free Trial
                   </Button>
                 }
+                onPurchaseSuccess={refreshProStatus}
               />
             </div>
           </CardContent>
         </Card>
       )}
 
-      {isPro && (
+      {/* Trial Status Card */}
+      {isPro && isTrialActive && (
+        <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20">
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Clock className="w-8 h-8 text-blue-600 mr-3" />
+                  <div>
+                    <h3 className="font-semibold text-blue-800 dark:text-blue-200 flex items-center">
+                      Pro Trial Active
+                      <Sparkles className="w-4 h-4 ml-2 text-amber-500" />
+                    </h3>
+                    <p className="text-blue-700 dark:text-blue-300 text-sm">
+                      {trialDaysRemaining > 1 
+                        ? `${trialDaysRemaining} days remaining in your free trial`
+                        : trialDaysRemaining === 1 
+                          ? 'Last day of your free trial' 
+                          : 'Trial ends today'
+                      }
+                    </p>
+                  </div>
+                </div>
+                <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                  <Calendar className="w-3 h-3 mr-1" />
+                  {trialDaysRemaining} days left
+                </Badge>
+              </div>
+
+              {trialDaysRemaining <= 3 && (
+                <div className="p-3 bg-amber-100 dark:bg-amber-900/20 rounded-lg">
+                  <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
+                    🎯 Trial ending soon! Keep enjoying Pro features by continuing your subscription.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button onClick={handleManageSubscription} variant="outline" size="sm">
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Manage Subscription
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Paid Pro Status Card */}
+      {isPro && !isTrialActive && (
         <Card className="border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20">
           <CardContent className="p-6">
-            <div className="flex items-center">
-              <Crown className="w-8 h-8 text-green-600 mr-3" />
-              <div>
-                <h3 className="font-semibold text-green-800 dark:text-green-200 flex items-center">
-                  FlowTracker Pro Active
-                  <Sparkles className="w-4 h-4 ml-2 text-amber-500" />
-                </h3>
-                <p className="text-green-700 dark:text-green-300 text-sm">
-                  Thank you for supporting FlowTracker! Enjoy all premium features.
-                </p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Crown className="w-8 h-8 text-green-600 mr-3" />
+                  <div>
+                    <h3 className="font-semibold text-green-800 dark:text-green-200 flex items-center">
+                      FlowTracker Pro Active
+                      <Sparkles className="w-4 h-4 ml-2 text-amber-500" />
+                    </h3>
+                    <p className="text-green-700 dark:text-green-300 text-sm">
+                      Thank you for supporting FlowTracker! Enjoy all premium features.
+                    </p>
+                  </div>
+                </div>
+                <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  <Crown className="w-3 h-3 mr-1" />
+                  Pro Subscriber
+                </Badge>
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={handleManageSubscription} variant="outline" size="sm">
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Manage Subscription
+                </Button>
               </div>
             </div>
           </CardContent>
