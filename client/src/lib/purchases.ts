@@ -105,9 +105,9 @@ class PurchasesService {
 
     try {
       await this.initialize();
-      // Destructure offerings from RevenueCat v11 response structure
-      const { offerings } = await Purchases.getOfferings();
-      return offerings;
+      // Get offerings from RevenueCat v11 response structure
+      const result = await Purchases.getOfferings();
+      return result.offerings;
     } catch (error) {
       console.error('Failed to get offerings:', error);
       return null;

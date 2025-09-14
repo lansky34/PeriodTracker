@@ -165,7 +165,6 @@ export function SubscriptionPaywall({ onClose, onPurchaseSuccess, trigger }: Sub
                   <Button
                     onClick={() => handlePurchase(plan.id)}
                     disabled={loading !== null}
-                    loading={loading === plan.id}
                     variant={plan.popular ? "default" : "outline"}
                     data-testid={`button-purchase-${plan.id}`}
                   >
@@ -182,10 +181,9 @@ export function SubscriptionPaywall({ onClose, onPurchaseSuccess, trigger }: Sub
               variant="ghost"
               onClick={handleRestore}
               disabled={loading !== null}
-              loading={loading === 'restore'}
               data-testid="button-restore-purchases"
             >
-              Restore Purchases
+              {loading === 'restore' ? 'Restoring...' : 'Restore Purchases'}
             </Button>
             
             {onClose && (

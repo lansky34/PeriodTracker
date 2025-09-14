@@ -5,9 +5,14 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { TrendingUp, Calendar, Download, FileText, Shield, BarChart3, PieChart, Zap, Sparkles } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPieChart, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPieChart, Cell, Pie } from 'recharts';
 import { ProFeatureGate } from "@/components/pro-feature-gate";
 import { usePro } from "@/hooks/use-pro";
+import { AIHealthCoach } from "@/components/ai-health-coach";
+import { PartnerSharing } from "@/components/partner-sharing";
+import { FertilityMode } from "@/components/fertility-mode";
+import { HealthIntegrations } from "@/components/health-integrations";
+import { ConditionSupport } from "@/components/condition-support";
 
 export default function InsightsPage() {
   const { isPro } = usePro();
@@ -462,6 +467,21 @@ This is a personalized health report. Keep it secure and share only with healthc
               </CardContent>
             </Card>
           </ProFeatureGate>
+
+          {/* AI Health Coach - Pro Feature */}
+          <AIHealthCoach />
+
+          {/* Advanced Fertility Mode - Pro Feature */}
+          <FertilityMode />
+
+          {/* Health Device Integration - Pro Feature */}
+          <HealthIntegrations />
+
+          {/* PCOS/Endometriosis Support - Pro Feature */}
+          <ConditionSupport />
+
+          {/* Partner Sharing - Pro Feature */}
+          <PartnerSharing />
         </>
       )}
     </div>
