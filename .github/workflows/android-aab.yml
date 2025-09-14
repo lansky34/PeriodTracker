@@ -1,8 +1,6 @@
 name: Build Android AAB
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -10,62 +8,51 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+      # -------- Web/Capacitor part --------
+      - name: Setup Node 20 (for Capacitor)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Build Capacitor/Ionic web assets
-      run: npm run build
+      # If you build web assets (e.g. React/Vite/Next) before sync:
+      - name: Build web assets
+        run: npm run build
 
-    - name: Sync native code with Capacitor
-      run: npx cap sync android
+      - name: Sync native code with Capacitor
+        run: npx cap sync android
 
-    - name: Setup Java 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+      # -------- Android/Gradle part --------
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+      - name: Decode keystore
+        working-directory: android
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > app/my-release-key.jks
 
-    - name: Accept Android SDK licenses
-      run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+      - name: Make gradlew executable
+        working-directory: android
+        run: chmod +x ./gradlew
 
-    - name: Restore keystore from secrets
-      run: |
-        echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/my-release-key.jks
+      - name: Build Release AAB
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS:          ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD:       ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease --stacktrace --info
 
-    - name: Configure signing properties
-      run: |
-        cat >> android/gradle.properties << EOF
-        
-        # Signing configuration for release builds
-        MYAPP_RELEASE_STORE_FILE=my-release-key.jks
-        MYAPP_RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
-        MYAPP_RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        MYAPP_RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
-        EOF
-
-    - name: Grant execute permission for gradlew
-      run: chmod +x android/gradlew
-
-    - name: Build signed Android App Bundle
-      run: |
-        cd android
-        ./gradlew bundleRelease
-
-    - name: Upload AAB artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: signed-aab
-        path: android/app/build/outputs/bundle/release/app-release.aab
-        retention-days: 30
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
