@@ -1,5 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">FlowTracker</string>
-    <string name="base_url">https://YOUR-LIVE-WEB-APP-URL</string>
+    <string name="title_activity_main">FlowTracker</string>
+    <string name="package_name">xyz.flowtracker.app</string>
+    <string name="custom_url_scheme">xyz.flowtracker.app</string>
 </resources>
