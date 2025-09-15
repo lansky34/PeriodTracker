@@ -103,8 +103,11 @@ jobs:
         working-directory: android
         run: |
           echo "=== TESTING GRADLE BUILD ==="
-          ./gradlew clean
-          ./gradlew assembleDebug --stacktrace
+          # Configure Gradle for CI environment
+          export GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2 -Xmx4g"
+          
+          ./gradlew clean --no-daemon --no-parallel --stacktrace
+          ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace --info
           echo "Debug build completed"
           
       - name: Build Release AAB (FINAL STEP)
@@ -113,6 +116,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2 -Xmx4g"
         run: |
           echo "=== BUILDING RELEASE AAB ==="
           if [ -f "my-release-key.jks" ]; then
@@ -121,7 +125,7 @@ jobs:
             echo "Building UNSIGNED AAB (no keystore found)..."
           fi
           
-          ./gradlew bundleRelease --no-configuration-cache -x lint -x test --stacktrace --info
+          ./gradlew bundleRelease --no-daemon --no-parallel --no-configuration-cache -x lint -x test --stacktrace --info
           
           echo "=== CHECKING OUTPUT ==="
           find . -name "*.aab" -type f
