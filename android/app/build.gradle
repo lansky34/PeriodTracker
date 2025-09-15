@@ -1,11 +1,11 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.periodflow.app"
+    namespace "xyz.flowtracker.app"
     compileSdkVersion rootProject.ext.compileSdkVersion
     
     defaultConfig {
-        applicationId "com.periodflow.app"
+        applicationId "xyz.flowtracker.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -79,9 +79,9 @@ dependencies {
     implementation "androidx.fragment:fragment:$androidxFragmentVersion"
     implementation "androidx.core:core-splashscreen:1.0.1"
     
-    // Capacitor - use project references (revert Maven approach)
+    // Capacitor - minimal build (core only, cordova-plugins missing from node_modules)
     implementation project(':capacitor-android')
-    implementation project(':capacitor-cordova-android-plugins')
+    // implementation project(':capacitor-cordova-android-plugins') // MISSING - causes build failure
     
     // Plugin-specific dependencies with EXACT versions
     implementation 'com.google.android.gms:play-services-ads:22.6.0'
@@ -108,7 +108,8 @@ configurations.all {
     }
 }
 
-apply from: 'capacitor.build.gradle'
+// Skip capacitor.build.gradle - it references missing cordova-plugins
+// apply from: 'capacitor.build.gradle'
 
 try {
     def servicesJSON = file('google-services.json')
