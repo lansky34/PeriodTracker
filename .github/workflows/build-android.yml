@@ -42,10 +42,12 @@ jobs:
           npm ci
           npm run build
           
-      - name: Verify Node.js version
+      - name: Verify Node.js version and install Capacitor CLI
         run: |
           node --version
           npm --version
+          npm install -g @capacitor/cli
+          npx cap --version
           
       - name: Sync Capacitor (Critical Step)
         run: npx cap sync android
