@@ -54,6 +54,39 @@ allprojects {
     }
 }
 
+// CRITICAL: Force Java 17 for ALL subprojects (including :capacitor-android from node_modules)
+subprojects {
+    afterEvaluate { proj ->
+        // Force Android plugin compileOptions
+        proj.pluginManager.withPlugin('com.android.library') {
+            proj.android {
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+            }
+        }
+        proj.pluginManager.withPlugin('com.android.application') {
+            proj.android {
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+            }
+        }
+        // Force all JavaCompile tasks
+        proj.tasks.withType(JavaCompile).configureEach {
+            sourceCompatibility = '17'
+            targetCompatibility = '17'
+            options.release = 17
+        }
+        // If any Kotlin present
+        proj.tasks.matching { it.name =~ /compile.*Kotlin/ }.configureEach {
+            if (it.hasProperty('kotlinOptions')) it.kotlinOptions.jvmTarget = '17'
+        }
+    }
+}
+
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
