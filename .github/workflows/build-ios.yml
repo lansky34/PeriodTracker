@@ -2,8 +2,9 @@ name: Build iOS IPA
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
+  # Temporarily disabled - focus on Android build
+  # push:
+  #   branches: [ main ]
 
 jobs:
   build:
