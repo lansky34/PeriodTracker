@@ -146,6 +146,7 @@ jobs:
             android/mergeDebugJavaResource.log
             android/dependencies.log
             android/assembleDebug.log
+            android/bundleDebug.log
           retention-days: 7
           
       - name: Build Debug AAB (TEST APPROACH)
@@ -156,7 +157,9 @@ jobs:
           echo "=== BUILDING DEBUG AAB AFTER DIAGNOSIS ==="
           echo "Attempting bundleDebug with current packaging excludes..."
           
-          ./gradlew bundleDebug --no-daemon --no-parallel --stacktrace --info
+          ./gradlew bundleDebug --no-daemon --no-parallel --stacktrace --info --debug 2>&1 | tee bundleDebug.log || echo "BUNDLE DEBUG FAILED - capturing full error"
+          echo "=== LAST 30 LINES OF BUNDLE DEBUG LOG ==="
+          tail -30 bundleDebug.log || echo "No bundle log found"
           
           echo "=== CHECKING DEBUG OUTPUT ==="
           find . -name "*.aab" -type f
