@@ -1,0 +1,231 @@
+The core issue is that your Capacitor plugins are expecting specific variants that don't exist. Here's the exact solution:
+
+1. Create this EXACT build.gradle fix - android/build.gradle
+Copybuildscript {
+    ext {
+        buildToolsVersion = "34.0.0"
+        minSdkVersion = 22
+        compileSdkVersion = 34
+        targetSdkVersion = 34
+        ndkVersion = "25.1.8937393"
+        
+        // CRITICAL: Use these exact versions to match variants
+        capacitorVersion = "5.5.1"
+        cordovaAndroidVersion = "12.0.1"
+        
+        androidxActivityVersion = "1.8.0"
+        androidxAppCompatVersion = "1.6.1" 
+        androidxCoreVersion = "1.12.0"
+        androidxFragmentVersion = "1.6.2"
+    }
+    
+    repositories {
+        google()
+        mavenCentral()
+    }
+    
+    dependencies {
+        // EXACT VERSION to fix variant issues
+        classpath 'com.android.tools.build:gradle:8.1.4'
+        classpath 'com.google.gms:google-services:4.4.0'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://www.jitpack.io' }
+        
+        // REMOVE ALL flatDir references completely
+    }
+    
+    // CRITICAL: Force resolve all variant conflicts
+    configurations.all {
+        resolutionStrategy {
+            force "com.getcapacitor:capacitor-android:${capacitorVersion}"
+            force 'androidx.core:core:1.12.0'
+            force 'androidx.appcompat:appcompat:1.6.1'
+            
+            // Fix the exact attribute matching issues
+            eachDependency { DependencyResolveDetails details ->
+                if (details.requested.group == 'com.getcapacitor') {
+                    details.useVersion capacitorVersion
+                }
+            }
+        }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
+2. Update android/app/build.gradle with variant fixes
+Copyapply plugin: 'com.android.application'
+
+android {
+    namespace 'io.ionic.starter'
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    
+    defaultConfig {
+        applicationId "io.ionic.starter"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+    
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    
+    // CRITICAL: Add this to fix variant matching
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+            withJavadocJar()
+        }
+    }
+}
+
+// IMPORTANT: Remove ALL repositories from here
+// This was causing the flatDir issues
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    
+    // Use EXACT versions that match the variants
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.core:core:$androidxCoreVersion"
+    implementation "androidx.activity:activity:$androidxActivityVersion"
+    implementation "androidx.fragment:fragment:$androidxFragmentVersion"
+    
+    // Capacitor - use project references, not direct dependencies
+    implementation project(':capacitor-android')
+    implementation project(':capacitor-cordova-android-plugins')
+    
+    // Plugin-specific dependencies with EXACT versions
+    implementation 'com.google.android.gms:play-services-ads:22.6.0'
+    implementation 'com.revenuecat.purchases:purchases:7.3.5'
+    implementation 'androidx.work:work-runtime:2.8.1'
+    
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
+
+// CRITICAL: Add this configuration to resolve variant issues
+configurations.all {
+    resolutionStrategy {
+        // Force all conflicting dependencies to use compatible versions
+        force 'androidx.core:core:1.12.0'
+        force 'androidx.appcompat:appcompat:1.6.1'
+        force 'androidx.activity:activity:1.8.0'
+        force 'androidx.fragment:fragment:1.6.2'
+        
+        // Exclude problematic transitive dependencies
+        exclude group: 'com.android.support', module: 'support-v4'
+        exclude group: 'com.android.support', module: 'support-v13'
+    }
+}
+3. Update capacitor.config.ts
+Copyimport { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'io.ionic.starter',
+  appName: 'your-app-name',
+  webDir: 'dist',
+  server: {
+    androidScheme: 'https'
+  },
+  android: {
+    buildOptions: {
+      releaseType: 'AAB'
+    }
+  }
+};
+
+export default config;
+4. Force Plugin Regeneration Script
+Create this file as fix-capacitor.sh:
+
+Copy#!/bin/bash
+
+echo "🔧 Fixing Capacitor variant issues..."
+
+# 1. Remove all generated Android files
+echo "🗑️ Removing generated files..."
+rm -rf android/.gradle
+rm -rf android/build
+rm -rf android/app/build
+rm -rf android/capacitor-cordova-android-plugins/build
+rm -rf node_modules/.cache
+
+# 2. Clean Capacitor completely
+echo "🧹 Deep cleaning Capacitor..."
+npx cap clean android
+
+# 3. Remove and reinstall problematic plugins
+echo "📦 Reinstalling plugins..."
+npm uninstall @capacitor-community/admob @revenuecat/purchases-capacitor @capacitor/local-notifications
+
+# 4. Install compatible versions
+npm install @capacitor-community/admob@5.1.0
+npm install @revenuecat/purchases-capacitor@7.3.5  
+npm install @capacitor/local-notifications@5.0.7
+
+# 5. Sync with clean slate
+echo "🔄 Syncing Capacitor..."
+npx cap sync android
+
+# 6. Build
+echo "🏗️ Building AAB..."
+cd android
+./gradlew clean
+./gradlew bundleRelease --no-daemon --warning-mode=all
+
+echo "✅ Build completed!"
+5. Quick Terminal Commands for Replit
+Run these commands in order:
+
+Copy# Make script executable
+chmod +x fix-capacitor.sh
+
+# Run the complete fix
+./fix-capacitor.sh
+6. If Still Failing - Manual Plugin Fix
+Add this to android/settings.gradle:
+
+Copyinclude ':app'
+include ':capacitor-android'
+project(':capacitor-android').projectDir = new File('../node_modules/@capacitor/android/capacitor')
+
+include ':capacitor-cordova-android-plugins'
+project(':capacitor-cordova-android-plugins').projectDir = new File('../node_modules/@capacitor/android/capacitor-cordova-android-plugins')
+
+// CRITICAL: Ensure all plugin projects are properly configured
+gradle.projectsLoaded {
+    rootProject.allprojects { project ->
+        project.buildDir = new File(rootProject.buildDir, project.name)
+    }
+}
+7. Alternative - Use Ionic/Capacitor Docker Build
+If the variant issues persist, use this approach in Replit:
+
+Copy# Install Ionic CLI
+npm install -g @ionic/cli
+
+# Build using Ionic
+ionic capacitor build android --prod --release
+
+# Or use Capacitor directly with specific build
+npx cap build android --configuration production

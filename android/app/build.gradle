@@ -12,9 +12,6 @@ android {
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
-        // Enable multidex if needed
-        multiDexEnabled true
-        
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -66,66 +63,48 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
     
-    // Fix for packaging conflicts
-    packagingOptions {
-        pickFirst '**/libc++_shared.so'
-        pickFirst '**/libjsc.so'
-    }
+    // Publishing block removed - it's for libraries, not applications
 }
 
-repositories {
-    maven { url 'https://www.jitpack.io' }
-    
-    // IMPORTANT: Remove any flatDir repositories
-    // DO NOT USE flatDir here
-}
+// IMPORTANT: Remove ALL repositories from here
+// This was causing the flatDir issues
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     
-    // Core Android dependencies with fixed versions
+    // Use EXACT versions that match the variants
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.core:core:$androidxCoreVersion"
     implementation "androidx.activity:activity:$androidxActivityVersion"
     implementation "androidx.fragment:fragment:$androidxFragmentVersion"
-    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
-    implementation "androidx.webkit:webkit:$androidxWebkitVersion"
-    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation "androidx.core:core-splashscreen:1.0.1"
     
-    // Capacitor core - use specific version to avoid conflicts
-    implementation "com.getcapacitor:capacitor-android:$capacitorVersion"
-    
-    // Capacitor plugins - ensure compatibility
+    // Capacitor - use project references, not direct dependencies
+    implementation project(':capacitor-android')
     implementation project(':capacitor-cordova-android-plugins')
     
-    // Plugin dependencies with specific versions to resolve conflicts
+    // Plugin-specific dependencies with EXACT versions
     implementation 'com.google.android.gms:play-services-ads:22.6.0'
     implementation 'com.revenuecat.purchases:purchases:7.3.5'
     implementation 'androidx.work:work-runtime:2.8.1'
-    implementation 'com.google.firebase:firebase-messaging:23.4.0'
     
-    // Test dependencies
-    testImplementation "junit:junit:$junitVersion"
-    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
-    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoVersion"
-    
-    // Multidex support
-    implementation 'androidx.multidex:multidex:2.0.1'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
 
-// Force specific plugin versions to resolve conflicts
+// CRITICAL: Add this configuration to resolve variant issues
 configurations.all {
     resolutionStrategy {
-        force 'com.getcapacitor:capacitor-android:5.5.1'
+        // Force all conflicting dependencies to use compatible versions
         force 'androidx.core:core:1.12.0'
         force 'androidx.appcompat:appcompat:1.6.1'
+        force 'androidx.activity:activity:1.8.0'
+        force 'androidx.fragment:fragment:1.6.2'
         
-        // Plugin-specific fixes
-        eachDependency { details ->
-            if (details.requested.group == 'com.android.support') {
-                details.useVersion '28.0.0'
-            }
-        }
+        // Exclude problematic transitive dependencies
+        exclude group: 'com.android.support', module: 'support-v4'
+        exclude group: 'com.android.support', module: 'support-v13'
     }
 }
 
