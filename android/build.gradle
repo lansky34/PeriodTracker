@@ -22,7 +22,7 @@ buildscript {
     }
     
     dependencies {
-        // EXACT VERSION to fix variant issues - upgraded for JDK 21 compatibility
+        // EXACT VERSION to fix variant issues - compatible with JDK 17
         classpath 'com.android.tools.build:gradle:8.3.2'
         classpath 'com.google.gms:google-services:4.4.0'
     }
