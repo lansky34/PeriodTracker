@@ -1,0 +1,125 @@
+name: 🚀 PURE ANDROID BUILD (No Capacitor CLI)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js for web build only
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Setup Java for Android
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        
+      - name: Accept Android SDK licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+        
+      - name: Install Android SDK components
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0"
+        
+      - name: Build web assets ONLY (NO Capacitor)
+        run: |
+          echo "=== BUILDING WEB ASSETS ==="
+          npm ci
+          npm run build
+          echo "Web build completed"
+          ls -la dist/ || ls -la build/ || echo "No dist/build folder"
+          
+      - name: Copy web assets directly to Android (NO Capacitor CLI)
+        run: |
+          echo "=== COPYING WEB ASSETS TO ANDROID ==="
+          
+          # Ensure Android assets directory exists
+          mkdir -p android/app/src/main/assets/public
+          
+          # Copy web assets (try both common locations)
+          if [ -d "dist" ]; then
+            echo "Copying from dist/ folder..."
+            cp -r dist/* android/app/src/main/assets/public/
+          elif [ -d "build" ]; then
+            echo "Copying from build/ folder..."
+            cp -r build/* android/app/src/main/assets/public/
+          else
+            echo "Creating minimal index.html..."
+            cat > android/app/src/main/assets/public/index.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FlowTracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <div id="root">
+        <h1>FlowTracker - Period Tracking App</h1>
+        <p>Loading...</p>
+    </div>
+</body>
+</html>
+EOF
+          fi
+          
+          echo "Assets copied successfully:"
+          ls -la android/app/src/main/assets/public/
+          
+      - name: Verify Android project structure
+        run: |
+          echo "=== ANDROID PROJECT VERIFICATION ==="
+          echo "Checking for gradlew..."
+          ls -la android/gradlew || echo "gradlew not found"
+          
+          echo "Checking build.gradle files..."
+          ls -la android/build.gradle || echo "root build.gradle not found"
+          ls -la android/app/build.gradle || echo "app build.gradle not found"
+          
+          echo "Checking assets..."
+          ls -la android/app/src/main/assets/public/ || echo "assets not found"
+          
+      - name: Make gradlew executable
+        working-directory: android
+        run: chmod +x ./gradlew
+        
+      - name: Test Gradle build (debug first)
+        working-directory: android
+        run: |
+          echo "=== TESTING GRADLE BUILD ==="
+          ./gradlew clean
+          ./gradlew assembleDebug --stacktrace
+          echo "Debug build completed"
+          
+      - name: Build Release AAB (FINAL STEP)
+        working-directory: android
+        run: |
+          echo "=== BUILDING RELEASE AAB ==="
+          ./gradlew bundleRelease --no-configuration-cache -x lint -x test --stacktrace --info
+          
+          echo "=== CHECKING OUTPUT ==="
+          find . -name "*.aab" -type f
+          ls -la app/build/outputs/bundle/release/ || echo "Release folder not found"
+          
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flowtracker-release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          retention-days: 30

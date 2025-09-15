@@ -1,8 +1,9 @@
-name: Build Android APK - Experiment 1
+name: Build Android APK - DISABLED (use pure-android-build instead)
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
+  # Disabled - using pure-android-build.yml instead
+  # push:
+  #   branches: [ main ]
 
 jobs:
   build:
