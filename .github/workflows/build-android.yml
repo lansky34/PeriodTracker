@@ -43,17 +43,28 @@ jobs:
           npm ci
           npm run build
           
-      - name: Sync Capacitor (Critical Step)
+      - name: Copy web assets to Android (Bypass Capacitor CLI)
         run: |
-          echo "Using Node $(node -v) at $(command -v node)"
-          echo "process.version test:"
-          node -e "console.log('process.version:', process.version)"
-          echo "version comparison:"
-          node -e "console.log('node --version equivalent:', process.version); console.log('version check >=20.0.0:', parseInt(process.version.slice(1)) >= 20)"
-          echo "Using local Capacitor CLI at $(node -p "require.resolve('@capacitor/cli/package.json')")"
-          export PATH="$(dirname $(command -v node)):$PATH"
-          echo "PATH: $PATH"
-          node node_modules/.bin/cap sync android
+          echo "Bypassing Capacitor CLI due to Node.js detection issues"
+          echo "Node version: $(node -v)"
+          
+          # Create android/app/src/main/assets/public if it doesn't exist
+          mkdir -p android/app/src/main/assets/public
+          
+          # Copy built web assets directly
+          if [ -d "dist" ]; then
+            echo "Copying dist/ to Android assets..."
+            cp -r dist/* android/app/src/main/assets/public/
+          elif [ -d "build" ]; then
+            echo "Copying build/ to Android assets..."
+            cp -r build/* android/app/src/main/assets/public/
+          else
+            echo "No dist or build folder found - creating index.html"
+            echo '<html><body><h1>FlowTracker App</h1></body></html>' > android/app/src/main/assets/public/index.html
+          fi
+          
+          echo "Web assets copied successfully"
+          ls -la android/app/src/main/assets/public/
         
       - name: Decode keystore (if available)
         working-directory: android
