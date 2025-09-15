@@ -79,9 +79,10 @@ dependencies {
     implementation "androidx.fragment:fragment:$androidxFragmentVersion"
     implementation "androidx.core:core-splashscreen:1.0.1"
     
-    // Capacitor - use project references, not direct dependencies
-    implementation project(':capacitor-android')
-    implementation project(':capacitor-cordova-android-plugins')
+    // Capacitor - use Maven dependencies instead of project references for CI build
+    implementation "com.getcapacitor:capacitor-android:5.5.1"
+    // Temporarily skip cordova-plugins for minimal build
+    // implementation project(':capacitor-cordova-android-plugins')
     
     // Plugin-specific dependencies with EXACT versions
     implementation 'com.google.android.gms:play-services-ads:22.6.0'
@@ -108,7 +109,8 @@ configurations.all {
     }
 }
 
-apply from: 'capacitor.build.gradle'
+// Temporarily skip capacitor plugin configurations for minimal build
+// apply from: 'capacitor.build.gradle'
 
 try {
     def servicesJSON = file('google-services.json')
