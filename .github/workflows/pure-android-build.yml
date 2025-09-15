@@ -137,7 +137,12 @@ jobs:
             echo "Building UNSIGNED AAB (no keystore found)..."
           fi
           
-          ./gradlew bundleRelease --no-daemon --no-parallel --no-configuration-cache -x lint -x test --stacktrace --info
+          # Add comprehensive diagnostics before build
+          echo "=== PRE-BUILD DIAGNOSTICS ==="
+          ./gradlew :app:dependencies --configuration releaseRuntimeClasspath || true
+          
+          echo "=== ATTEMPTING BUNDLE BUILD ==="
+          ./gradlew bundleRelease --no-daemon --no-parallel --no-configuration-cache -x lint -x test --stacktrace --info --debug
           
           echo "=== CHECKING OUTPUT ==="
           find . -name "*.aab" -type f
