@@ -3,6 +3,7 @@ apply plugin: 'com.android.application'
 android {
     namespace "xyz.flowtracker.app"
     compileSdkVersion rootProject.ext.compileSdkVersion
+    buildToolsVersion "35.0.0"
     
     defaultConfig {
         applicationId "xyz.flowtracker.app"
@@ -101,10 +102,10 @@ dependencies {
     implementation project(':capacitor-android')
     // implementation project(':capacitor-cordova-android-plugins') // MISSING - causes build failure
     
-    // Plugin-specific dependencies - TEMPORARILY REMOVED FOR ISOLATION TEST
-    // implementation 'com.google.android.gms:play-services-ads:22.6.0'
-    // implementation 'com.revenuecat.purchases:purchases:7.3.5'
-    // implementation 'androidx.work:work-runtime:2.8.1'
+    // Plugin-specific dependencies - RE-ENABLED (issue was build tools mismatch)
+    implementation 'com.google.android.gms:play-services-ads:22.6.0'
+    implementation 'com.revenuecat.purchases:purchases:7.3.5'
+    implementation 'androidx.work:work-runtime:2.8.1'
     
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
