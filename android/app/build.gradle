@@ -63,25 +63,22 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
     
-    // Fix AAB packaging - exclude duplicate META-INF resources (EXPANDED)
-    packaging {
-        resources {
-            excludes += [
-                "META-INF/DEPENDENCIES",
-                "META-INF/LICENSE*",
-                "META-INF/NOTICE*",
-                "META-INF/AL2.0",
-                "META-INF/LGPL2.1",
-                "META-INF/INDEX.LIST",
-                "META-INF/*.kotlin_module",
-                "META-INF/versions/**"
-            ]
-            pickFirsts += [
-                "META-INF/*.version",
-                "META-INF/gradle/incremental.annotation.processors",
-                "META-INF/proguard/*"
-            ]
-        }
+    // Fix AAB packaging - try AGP 7.x syntax (packagingOptions instead of packaging)
+    packagingOptions {
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/LICENSE*'
+        exclude 'META-INF/NOTICE*'
+        exclude 'META-INF/AL2.0'
+        exclude 'META-INF/LGPL2.1'
+        exclude 'META-INF/INDEX.LIST'
+        exclude 'META-INF/*.kotlin_module'
+        exclude 'META-INF/versions/**'
+        pickFirst 'META-INF/*.version'
+        pickFirst 'META-INF/gradle/incremental.annotation.processors'
+        pickFirst 'META-INF/proguard/*'
+        pickFirst 'META-INF/androidx.work.work-runtime.version'
+        pickFirst 'META-INF/androidx.fragment.fragment.version'
+        pickFirst 'META-INF/androidx.activity.activity.version'
     }
     
     // Publishing block removed - it's for libraries, not applications
@@ -104,10 +101,10 @@ dependencies {
     implementation project(':capacitor-android')
     // implementation project(':capacitor-cordova-android-plugins') // MISSING - causes build failure
     
-    // Plugin-specific dependencies with EXACT versions
-    implementation 'com.google.android.gms:play-services-ads:22.6.0'
-    implementation 'com.revenuecat.purchases:purchases:7.3.5'
-    implementation 'androidx.work:work-runtime:2.8.1'
+    // Plugin-specific dependencies - TEMPORARILY REMOVED FOR ISOLATION TEST
+    // implementation 'com.google.android.gms:play-services-ads:22.6.0'
+    // implementation 'com.revenuecat.purchases:purchases:7.3.5'
+    // implementation 'androidx.work:work-runtime:2.8.1'
     
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'

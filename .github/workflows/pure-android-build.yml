@@ -130,9 +130,20 @@ jobs:
           echo "=== DIAGNOSING EXACT DUPLICATE RESOURCES ==="
           echo "Running mergeDebugJavaResource to identify conflicting files..."
           
-          ./gradlew :app:mergeDebugJavaResource --no-daemon --no-parallel --stacktrace --info --debug --warning-mode all --console=plain || true
+          ./gradlew :app:mergeDebugJavaResource --stacktrace --info --debug --console=plain | tee mergeDebugJavaResource.log || true
+          ./gradlew :app:dependencies --configuration debugRuntimeClasspath | tee dependencies.log || true
           
-          echo "=== ABOVE OUTPUT SHOWS EXACT DUPLICATE FILES ==="
+          echo "=== DIAGNOSTIC LOGS CAPTURED FOR ANALYSIS ==="
+          
+      - name: Upload Diagnostic Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-logs
+          path: |
+            android/mergeDebugJavaResource.log
+            android/dependencies.log
+          retention-days: 7
           
       - name: Build Debug AAB (TEST APPROACH)
         working-directory: android
