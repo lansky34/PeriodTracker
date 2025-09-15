@@ -104,7 +104,7 @@ jobs:
         run: |
           echo "=== TESTING GRADLE BUILD ==="
           # Configure Gradle for CI environment
-          export GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2 -Xmx4g"
+          export GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2"
           
           ./gradlew clean --no-daemon --no-parallel --stacktrace
           ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace --info
@@ -116,7 +116,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2 -Xmx4g"
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2"
         run: |
           echo "=== BUILDING RELEASE AAB ==="
           if [ -f "my-release-key.jks" ]; then
