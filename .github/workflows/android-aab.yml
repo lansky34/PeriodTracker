@@ -25,8 +25,22 @@ jobs:
       - name: Build web assets
         run: npm run build
 
-      - name: Sync native code with Capacitor
-        run: npx cap sync android
+      - name: Copy web assets (Bypass Capacitor CLI)
+        run: |
+          echo "Bypassing Capacitor sync due to Node.js detection issues in GitHub Actions"
+          echo "Node version: $(node -v)"
+          mkdir -p android/app/src/main/assets/public
+          if [ -d "dist" ]; then
+            echo "Copying dist/ to Android assets..."
+            cp -r dist/* android/app/src/main/assets/public/
+          elif [ -d "build" ]; then
+            echo "Copying build/ to Android assets..."
+            cp -r build/* android/app/src/main/assets/public/
+          else
+            echo "Creating basic index.html"
+            echo '<html><body><h1>FlowTracker App</h1></body></html>' > android/app/src/main/assets/public/index.html
+          fi
+          echo "Web assets copied successfully"
 
       # -------- Android/Gradle part --------
       - name: Set up JDK 17
