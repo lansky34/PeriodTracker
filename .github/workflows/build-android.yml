@@ -46,6 +46,10 @@ jobs:
       - name: Sync Capacitor (Critical Step)
         run: |
           echo "Using Node $(node -v) at $(command -v node)"
+          echo "process.version test:"
+          node -e "console.log('process.version:', process.version)"
+          echo "version comparison:"
+          node -e "console.log('node --version equivalent:', process.version); console.log('version check >=20.0.0:', parseInt(process.version.slice(1)) >= 20)"
           echo "Using local Capacitor CLI at $(node -p "require.resolve('@capacitor/cli/package.json')")"
           export PATH="$(dirname $(command -v node)):$PATH"
           echo "PATH: $PATH"
