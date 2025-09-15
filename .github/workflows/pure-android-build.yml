@@ -23,7 +23,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
           
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -35,7 +35,7 @@ jobs:
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
             "platform-tools" \
-            "platforms;android-34" \
+            "platforms;android-35" \
             "build-tools;34.0.0"
         
       - name: Build web assets ONLY (NO Capacitor)
