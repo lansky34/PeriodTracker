@@ -122,13 +122,25 @@ jobs:
           ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace --info
           echo "Debug build completed"
           
+      - name: Diagnose Java Resource Conflicts (EXPERT DEBUG)
+        working-directory: android
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2"
+        run: |
+          echo "=== DIAGNOSING EXACT DUPLICATE RESOURCES ==="
+          echo "Running mergeDebugJavaResource to identify conflicting files..."
+          
+          ./gradlew :app:mergeDebugJavaResource --no-daemon --no-parallel --stacktrace --info --debug --warning-mode all --console=plain || true
+          
+          echo "=== ABOVE OUTPUT SHOWS EXACT DUPLICATE FILES ==="
+          
       - name: Build Debug AAB (TEST APPROACH)
         working-directory: android
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2"
         run: |
-          echo "=== BUILDING DEBUG AAB FIRST ==="
-          echo "Let's try debug build to isolate issues..."
+          echo "=== BUILDING DEBUG AAB AFTER DIAGNOSIS ==="
+          echo "Attempting bundleDebug with current packaging excludes..."
           
           ./gradlew bundleDebug --no-daemon --no-parallel --stacktrace --info
           
