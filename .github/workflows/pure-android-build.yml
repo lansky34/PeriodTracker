@@ -50,7 +50,8 @@ jobs:
         run: |
           echo "=== COPYING WEB ASSETS TO ANDROID ==="
           
-          # Ensure Android assets directory exists
+          # Clean and create Android assets directory
+          rm -rf android/app/src/main/assets/public
           mkdir -p android/app/src/main/assets/public
           
           # Copy web assets (try both common locations)
@@ -95,6 +96,17 @@ EOF
           echo "Checking assets..."
           ls -la android/app/src/main/assets/public/ || echo "assets not found"
           
+      - name: Decode keystore for signing (if available)
+        working-directory: android
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "Decoding keystore for signed build..."
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > my-release-key.jks
+            echo "Keystore decoded successfully"
+          else
+            echo "No keystore - will build unsigned AAB"
+          fi
+          
       - name: Make gradlew executable
         working-directory: android
         run: chmod +x ./gradlew
@@ -109,8 +121,18 @@ EOF
           
       - name: Build Release AAB (FINAL STEP)
         working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           echo "=== BUILDING RELEASE AAB ==="
+          if [ -f "my-release-key.jks" ]; then
+            echo "Building SIGNED AAB with keystore..."
+          else
+            echo "Building UNSIGNED AAB (no keystore found)..."
+          fi
+          
           ./gradlew bundleRelease --no-configuration-cache -x lint -x test --stacktrace --info
           
           echo "=== CHECKING OUTPUT ==="
