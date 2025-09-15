@@ -15,8 +15,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.17.0'
+          node-version: '20.x'
           cache: 'npm'
+          registry-url: 'https://registry.npmjs.org/'
           
       - name: Setup Java Latest (Required for Capacitor)
         uses: actions/setup-java@v4
@@ -44,13 +45,21 @@ jobs:
           
       - name: Verify Node.js version and install latest Capacitor CLI
         run: |
-          node --version
-          npm --version
+          echo "Node.js location: $(which node)"
+          echo "Node.js version: $(node --version)"
+          echo "npm version: $(npm --version)"
+          echo "PATH: $PATH"
           npm install -g @capacitor/cli@latest
+          echo "Capacitor CLI location: $(which cap)"
           npx cap --version
           
       - name: Sync Capacitor (Critical Step)
-        run: npx cap sync android
+        env:
+          NODE_PATH: ${{ env.NODE_PATH }}
+          PATH: ${{ env.PATH }}
+        run: |
+          echo "Running Capacitor sync with Node.js $(node --version)"
+          npx cap sync android
         
       - name: Decode keystore (if available)
         working-directory: android
