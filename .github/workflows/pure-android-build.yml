@@ -63,19 +63,9 @@ jobs:
             cp -r build/* android/app/src/main/assets/public/
           else
             echo "Creating minimal index.html..."
-            echo '<!DOCTYPE html>
-<html>
-<head>
-    <title>FlowTracker</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body>
-    <div id="root">
-        <h1>FlowTracker - Period Tracking App</h1>
-        <p>Loading...</p>
-    </div>
-</body>
-</html>' > android/app/src/main/assets/public/index.html
+            echo "<!DOCTYPE html>" > android/app/src/main/assets/public/index.html
+            echo "<html><head><title>FlowTracker</title></head>" >> android/app/src/main/assets/public/index.html
+            echo "<body><div id=\"root\"><h1>FlowTracker</h1><p>Loading...</p></div></body></html>" >> android/app/src/main/assets/public/index.html
           fi
           
           echo "Assets copied successfully:"
