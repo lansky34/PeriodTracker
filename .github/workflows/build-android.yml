@@ -18,11 +18,11 @@ jobs:
           node-version: '20.17.0'
           cache: 'npm'
           
-      - name: Setup Java 21 (Required for Capacitor)
+      - name: Setup Java Latest (Required for Capacitor)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: 'latest'
           
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -42,11 +42,11 @@ jobs:
           npm ci
           npm run build
           
-      - name: Verify Node.js version and install Capacitor CLI
+      - name: Verify Node.js version and install latest Capacitor CLI
         run: |
           node --version
           npm --version
-          npm install -g @capacitor/cli
+          npm install -g @capacitor/cli@latest
           npx cap --version
           
       - name: Sync Capacitor (Critical Step)
