@@ -122,6 +122,20 @@ jobs:
           ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace --info
           echo "Debug build completed"
           
+      - name: Build Debug AAB (TEST APPROACH)
+        working-directory: android
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2"
+        run: |
+          echo "=== BUILDING DEBUG AAB FIRST ==="
+          echo "Let's try debug build to isolate issues..."
+          
+          ./gradlew bundleDebug --no-daemon --no-parallel --stacktrace --info
+          
+          echo "=== CHECKING DEBUG OUTPUT ==="
+          find . -name "*.aab" -type f
+          ls -la app/build/outputs/bundle/debug/ || echo "Debug folder not found"
+          
       - name: Build Release AAB (FINAL STEP)
         working-directory: android
         env:
@@ -137,12 +151,9 @@ jobs:
             echo "Building UNSIGNED AAB (no keystore found)..."
           fi
           
-          # Add comprehensive diagnostics before build
-          echo "=== PRE-BUILD DIAGNOSTICS ==="
-          ./gradlew :app:dependencies --configuration releaseRuntimeClasspath || true
-          
-          echo "=== ATTEMPTING BUNDLE BUILD ==="
-          ./gradlew bundleRelease --no-daemon --no-parallel --no-configuration-cache -x lint -x test --stacktrace --info --debug
+          # Try a simpler release build approach
+          echo "=== ATTEMPTING BUNDLE BUILD (SIMPLIFIED) ==="
+          ./gradlew bundleRelease --no-daemon --stacktrace
           
           echo "=== CHECKING OUTPUT ==="
           find . -name "*.aab" -type f
