@@ -43,23 +43,13 @@ jobs:
           npm ci
           npm run build
           
-      - name: Verify Node.js version and install latest Capacitor CLI
-        run: |
-          echo "Node.js location: $(which node)"
-          echo "Node.js version: $(node --version)"
-          echo "npm version: $(npm --version)"
-          echo "PATH: $PATH"
-          npm install -g @capacitor/cli@latest
-          echo "Capacitor CLI location: $(which cap)"
-          npx cap --version
-          
       - name: Sync Capacitor (Critical Step)
-        env:
-          NODE_PATH: ${{ env.NODE_PATH }}
-          PATH: ${{ env.PATH }}
         run: |
-          echo "Running Capacitor sync with Node.js $(node --version)"
-          npx cap sync android
+          echo "Using Node $(node -v) at $(command -v node)"
+          echo "Using local Capacitor CLI at $(node -p "require.resolve('@capacitor/cli/package.json')")"
+          export PATH="$(dirname $(command -v node)):$PATH"
+          echo "PATH: $PATH"
+          node node_modules/.bin/cap sync android
         
       - name: Decode keystore (if available)
         working-directory: android
