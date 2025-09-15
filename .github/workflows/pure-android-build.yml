@@ -119,7 +119,9 @@ jobs:
           export GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2"
           
           ./gradlew clean --no-daemon --no-parallel --stacktrace
-          ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace --info
+          ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace --info --debug 2>&1 | tee assembleDebug.log || echo "BUILD FAILED - capturing details"
+          echo "=== LAST 50 LINES OF BUILD LOG ==="
+          tail -50 assembleDebug.log || echo "No log file found"
           echo "Debug build completed"
           
       - name: Diagnose Java Resource Conflicts (EXPERT DEBUG)
@@ -143,6 +145,7 @@ jobs:
           path: |
             android/mergeDebugJavaResource.log
             android/dependencies.log
+            android/assembleDebug.log
           retention-days: 7
           
       - name: Build Debug AAB (TEST APPROACH)
