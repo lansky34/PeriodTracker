@@ -71,7 +71,7 @@ jobs:
           echo "Assets copied successfully:"
           ls -la android/app/src/main/assets/public/
           
-      - name: Verify Android project structure
+      - name: Verify Android project structure AND Capacitor dependencies
         run: |
           echo "=== ANDROID PROJECT VERIFICATION ==="
           echo "Checking for gradlew..."
@@ -83,6 +83,18 @@ jobs:
           
           echo "Checking assets..."
           ls -la android/app/src/main/assets/public/ || echo "assets not found"
+          
+          echo "=== CAPACITOR DEPENDENCIES VERIFICATION ==="
+          echo "Checking Capacitor node modules..."
+          ls -la node_modules/@capacitor/ || echo "Capacitor modules not found"
+          ls -la node_modules/@capacitor/android/ || echo "Capacitor Android module not found"
+          ls -la node_modules/@capacitor/android/capacitor/ || echo "Capacitor core Android not found"
+          ls -la node_modules/@capacitor/android/capacitor-cordova-android-plugins/ || echo "Capacitor cordova plugins not found"
+          
+          echo "Checking plugin modules..."
+          ls -la node_modules/@capacitor-community/admob/android/ || echo "AdMob plugin Android not found"
+          ls -la node_modules/@capacitor/local-notifications/android/ || echo "Local notifications plugin Android not found"
+          ls -la node_modules/@revenuecat/purchases-capacitor/android/ || echo "RevenueCat plugin Android not found"
           
       - name: Decode keystore for signing (if available)
         working-directory: android
