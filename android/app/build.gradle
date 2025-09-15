@@ -2,7 +2,8 @@ apply plugin: 'com.android.application'
 
 android {
     namespace "com.periodflow.app"
-    compileSdk rootProject.ext.compileSdkVersion
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    
     defaultConfig {
         applicationId "com.periodflow.app"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -10,6 +11,10 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Enable multidex if needed
+        multiDexEnabled true
+        
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -55,24 +60,73 @@ android {
             enableSplit = true
         }
     }
-}
-
-repositories {
-    flatDir{
-        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    
+    // Fix for packaging conflicts
+    packagingOptions {
+        pickFirst '**/libc++_shared.so'
+        pickFirst '**/libjsc.so'
     }
 }
 
+repositories {
+    maven { url 'https://www.jitpack.io' }
+    
+    // IMPORTANT: Remove any flatDir repositories
+    // DO NOT USE flatDir here
+}
+
 dependencies {
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    
+    // Core Android dependencies with fixed versions
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.core:core:$androidxCoreVersion"
+    implementation "androidx.activity:activity:$androidxActivityVersion"
+    implementation "androidx.fragment:fragment:$androidxFragmentVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.webkit:webkit:$androidxWebkitVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
-    implementation project(':capacitor-android')
+    
+    // Capacitor core - use specific version to avoid conflicts
+    implementation "com.getcapacitor:capacitor-android:$capacitorVersion"
+    
+    // Capacitor plugins - ensure compatibility
+    implementation project(':capacitor-cordova-android-plugins')
+    
+    // Plugin dependencies with specific versions to resolve conflicts
+    implementation 'com.google.android.gms:play-services-ads:22.6.0'
+    implementation 'com.revenuecat.purchases:purchases:7.3.5'
+    implementation 'androidx.work:work-runtime:2.8.1'
+    implementation 'com.google.firebase:firebase-messaging:23.4.0'
+    
+    // Test dependencies
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
-    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
-    implementation project(':capacitor-cordova-android-plugins')
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoVersion"
+    
+    // Multidex support
+    implementation 'androidx.multidex:multidex:2.0.1'
+}
+
+// Force specific plugin versions to resolve conflicts
+configurations.all {
+    resolutionStrategy {
+        force 'com.getcapacitor:capacitor-android:5.5.1'
+        force 'androidx.core:core:1.12.0'
+        force 'androidx.appcompat:appcompat:1.6.1'
+        
+        // Plugin-specific fixes
+        eachDependency { details ->
+            if (details.requested.group == 'com.android.support') {
+                details.useVersion '28.0.0'
+            }
+        }
+    }
 }
 
 apply from: 'capacitor.build.gradle'

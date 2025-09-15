@@ -1,0 +1,295 @@
+android/build.gradle (Project Level)
+Copy// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+    ext {
+        buildToolsVersion = "34.0.0"
+        minSdkVersion = 22
+        compileSdkVersion = 34
+        targetSdkVersion = 34
+        ndkVersion = "25.1.8937393"
+        
+        // Capacitor versions
+        capacitorVersion = "5.5.1"
+        
+        // AndroidX versions
+        androidxActivityVersion = "1.8.0"
+        androidxAppCompatVersion = "1.6.1"
+        androidxCoordinatorLayoutVersion = "1.2.0"
+        androidxCoreVersion = "1.12.0"
+        androidxFragmentVersion = "1.6.2"
+        coreSplashScreenVersion = "1.0.1"
+        androidxWebkitVersion = "1.8.0"
+        
+        // Test versions
+        junitVersion = "4.13.2"
+        androidxJunitVersion = "1.1.5"
+        androidxEspressoVersion = "3.5.1"
+        
+        // Cordova version
+        cordovaAndroidVersion = "12.0.1"
+    }
+    
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.2.1'
+        classpath 'com.google.gms:google-services:4.4.0'
+        
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://www.jitpack.io' }
+        
+        // REMOVE flatDir - this causes the metadata format issues
+        // DO NOT USE: flatDir { dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs' }
+    }
+    
+    // Fix for dependency resolution
+    configurations.all {
+        resolutionStrategy {
+            force 'androidx.core:core:1.12.0'
+            force 'androidx.appcompat:appcompat:1.6.1'
+            force 'androidx.activity:activity:1.8.0'
+            force 'androidx.fragment:fragment:1.6.2'
+        }
+    }
+}
+
+// Clean task
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
+2. android/app/build.gradle (App Level)
+Copyapply plugin: 'com.android.application'
+
+android {
+    namespace 'io.ionic.starter'
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    
+    defaultConfig {
+        applicationId "io.ionic.starter"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Enable multidex if needed
+        multiDexEnabled true
+    }
+    
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.debug // Remove this when you set up your own signing config
+        }
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    
+    // Fix for packaging conflicts
+    packagingOptions {
+        pickFirst '**/libc++_shared.so'
+        pickFirst '**/libjsc.so'
+    }
+}
+
+repositories {
+    maven { url 'https://www.jitpack.io' }
+    
+    // IMPORTANT: Remove any flatDir repositories
+    // DO NOT USE flatDir here
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    
+    // Core Android dependencies with fixed versions
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.core:core:$androidxCoreVersion"
+    implementation "androidx.activity:activity:$androidxActivityVersion"
+    implementation "androidx.fragment:fragment:$androidxFragmentVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.webkit:webkit:$androidxWebkitVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    
+    // Capacitor core - use specific version to avoid conflicts
+    implementation "com.getcapacitor:capacitor-android:$capacitorVersion"
+    
+    // Capacitor plugins - ensure compatibility
+    implementation project(':capacitor-cordova-android-plugins')
+    
+    // Plugin dependencies with specific versions to resolve conflicts
+    implementation 'com.google.android.gms:play-services-ads:22.6.0'
+    implementation 'com.revenuecat.purchases:purchases:7.3.5'
+    implementation 'androidx.work:work-runtime:2.8.1'
+    implementation 'com.google.firebase:firebase-messaging:23.4.0'
+    
+    // Test dependencies
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoVersion"
+    
+    // Multidex support
+    implementation 'androidx.multidex:multidex:2.0.1'
+}
+
+// Apply Google Services plugin if you're using Firebase
+// apply plugin: 'com.google.gms.google-services'
+3. android/gradle/wrapper/gradle-wrapper.properties
+Copy#Mon Apr 25 15:51:13 UTC 2022
+distributionBase=GRADLE_USER_HOME
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.4-all.zip
+distributionPath=wrapper/dists
+zipStorePath=wrapper/dists
+zipStoreBase=GRADLE_USER_HOME
+4. android/gradle.properties
+Copy# Project-wide Gradle settings.
+# IDE (e.g. Android Studio) users:
+# Gradle settings configured through the IDE *will override*
+# any settings specified in this file.
+
+# For more details on how to configure your build environment visit
+# http://www.gradle.org/docs/current/userguide/build_environment.html
+
+# Specifies the JVM arguments used for the daemon process.
+# The setting is particularly useful for tweaking memory settings.
+# Default value: -Xmx1024m -XX:MaxPermSize=256m
+org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+
+# When configured, Gradle will run in incubating parallel mode.
+# This option should only be used with decoupled projects. More details, visit
+# http://www.gradle.org/docs/current/userguide/multi_project_builds.html#sec:decoupled_projects
+# org.gradle.parallel=true
+
+# AndroidX package structure to make it clearer which packages are bundled with the
+# Android operating system, and which are packaged with your app's APK
+# https://developer.android.com/topic/libraries/support-library/androidx-rn
+android.useAndroidX=true
+
+# Automatically convert third-party libraries to use AndroidX
+android.enableJetifier=true
+
+# Enable R8 full mode
+android.enableR8.fullMode=false
+
+# Disable build features by default
+android.defaults.buildfeatures.buildconfig=true
+android.nonTransitiveRClass=false
+android.nonFinalResIds=false
+
+# Enable configuration cache
+org.gradle.configuration-cache=true
+
+# Enable build cache
+org.gradle.caching=true
+
+# Use newer AGP features
+android.experimental.enableArtProfiles=false
+5. Fix Script - fix-build.sh
+Copy#!/bin/bash
+
+echo "🔧 Fixing Android build issues..."
+
+# Navigate to android directory
+cd android
+
+# Clean everything
+echo "🧹 Cleaning build cache..."
+./gradlew clean
+rm -rf .gradle
+rm -rf build
+rm -rf app/build
+
+# Clean Capacitor
+cd ..
+echo "🔄 Cleaning Capacitor..."
+npx cap clean android
+
+# Sync Capacitor with latest changes
+echo "🔄 Syncing Capacitor..."
+npx cap sync android
+
+# Go back to android directory
+cd android
+
+# Refresh dependencies
+echo "📦 Refreshing dependencies..."
+./gradlew --refresh-dependencies
+
+# Try building
+echo "🏗️ Building AAB..."
+./gradlew bundleRelease
+
+echo "✅ Build process completed!"
+echo "📱 Your AAB file should be at: android/app/build/outputs/bundle/release/app-release.aab"
+6. capacitor.config.ts (Update if needed)
+Copyimport { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'io.ionic.starter',
+  appName: 'your-app-name',
+  webDir: 'dist',
+  server: {
+    androidScheme: 'https'
+  },
+  android: {
+    buildOptions: {
+      keystorePath: undefined,
+      keystorePassword: undefined,
+      keystoreAlias: undefined,
+      keystoreAliasPassword: undefined,
+      releaseType: 'AAB'
+    }
+  }
+};
+
+export default config;
+7. Quick Fix Commands for Replit Terminal
+Copy# 1. Make the fix script executable
+chmod +x fix-build.sh
+
+# 2. Run the complete fix
+./fix-build.sh
+
+# 3. If still having issues, try manual steps:
+cd android
+./gradlew clean
+cd ..
+npx cap clean android
+npx cap sync android
+cd android
+./gradlew bundleRelease --stacktrace
+8. Alternative Individual Plugin Fixes
+If specific plugins still cause issues, add these to android/app/build.gradle:
+
+Copy// Force specific plugin versions to resolve conflicts
+configurations.all {
+    resolutionStrategy {
+        force 'com.getcapacitor:capacitor-android:5.5.1'
+        force 'androidx.core:core:1.12.0'
+        force 'androidx.appcompat:appcompat:1.6.1'
+        
+        // Plugin-specific fixes
+        eachDependency { details ->
+            if (details.requested.group == 'com.android.support') {
+                details.useVersion '28.0.0'
+            }
+        }
+    }
+}

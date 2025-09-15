@@ -1,5 +1,9 @@
 {
-	"appId": "xyz.flowtracker.app",
+	"appId": "com.periodflow.app",
 	"appName": "FlowTracker",
-	"webDir": "dist/public"
+	"webDir": "dist/public",
+	"server": {
+		"androidScheme": "https"
+	},
+	"android": {}
 }
