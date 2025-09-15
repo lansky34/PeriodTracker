@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK - Experiment 1
 on:
   workflow_dispatch:
   push:
@@ -12,12 +12,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         
-      - name: Setup Node.js
+      - name: Setup Node.js with NVM approach
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: 'lts/*'
           cache: 'npm'
-          registry-url: 'https://registry.npmjs.org/'
+          check-latest: true
           
       - name: Setup Java Latest (Required for Capacitor)
         uses: actions/setup-java@v4
@@ -43,28 +43,37 @@ jobs:
           npm ci
           npm run build
           
-      - name: Copy web assets to Android (Bypass Capacitor CLI)
+      - name: EXPERIMENT - Force Capacitor CLI with explicit Node path
         run: |
-          echo "Bypassing Capacitor CLI due to Node.js detection issues"
+          echo "=== DEBUGGING NODE.JS DETECTION ==="
           echo "Node version: $(node -v)"
+          echo "Node path: $(which node)"
+          echo "NPM version: $(npm -v)"
+          echo "Process version check:"
+          node -e "console.log('process.version:', process.version)"
+          node -e "console.log('version >= 20:', parseInt(process.version.slice(1)) >= 20)"
           
-          # Create android/app/src/main/assets/public if it doesn't exist
-          mkdir -p android/app/src/main/assets/public
+          echo "=== FORCING NODE.JS PATH ==="
+          export NODE_PATH=$(dirname $(which node))
+          export PATH="$NODE_PATH:$PATH"
+          echo "Updated PATH: $PATH"
           
-          # Copy built web assets directly
-          if [ -d "dist" ]; then
-            echo "Copying dist/ to Android assets..."
-            cp -r dist/* android/app/src/main/assets/public/
-          elif [ -d "build" ]; then
-            echo "Copying build/ to Android assets..."
-            cp -r build/* android/app/src/main/assets/public/
-          else
-            echo "No dist or build folder found - creating index.html"
-            echo '<html><body><h1>FlowTracker App</h1></body></html>' > android/app/src/main/assets/public/index.html
-          fi
+          echo "=== TRYING CAPACITOR CLI WITH EXPLICIT NODE ==="
+          # Try with explicit node binary
+          node --version
           
-          echo "Web assets copied successfully"
-          ls -la android/app/src/main/assets/public/
+          # Install specific Capacitor CLI version
+          npm install @capacitor/cli@6.1.2 --save-dev
+          
+          # Try sync with specific node
+          echo "Attempting Capacitor sync with explicit node path..."
+          NODE_BIN=$(which node) $NODE_BIN ./node_modules/.bin/cap sync android || {
+            echo "Capacitor sync failed - copying assets manually"
+            mkdir -p android/app/src/main/assets/public
+            if [ -d "dist" ]; then
+              cp -r dist/* android/app/src/main/assets/public/
+            fi
+          }
         
       - name: Decode keystore (if available)
         working-directory: android

@@ -1,0 +1,106 @@
+name: EXPERIMENT - Node.js Detection Debug
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # EXPERIMENT 1: Manual Node.js installation
+      - name: Manual Node.js 20 Installation
+        run: |
+          echo "=== INSTALLING NODE.JS 20 MANUALLY ==="
+          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+          sudo apt-get install -y nodejs
+          echo "Manual install - Node version: $(node -v)"
+          echo "Manual install - NPM version: $(npm -v)"
+      
+      # EXPERIMENT 2: Test Capacitor CLI detection
+      - name: Test Capacitor CLI Detection
+        run: |
+          echo "=== PROCESS VERSION TEST ==="
+          node -e "console.log('process.version:', process.version)"
+          node -e "console.log('version major:', parseInt(process.version.slice(1)))"
+          node -e "console.log('version >= 20:', parseInt(process.version.slice(1)) >= 20)"
+          
+          echo "=== INSTALLING CAPACITOR CLI ==="
+          npm install -g @capacitor/cli@latest
+          
+          echo "=== TESTING CAPACITOR VERSION DETECTION ==="
+          npx cap --version || echo "Capacitor version failed"
+          
+          echo "=== TESTING WITH EXPLICIT NODE ==="
+          node $(which cap) --version || echo "Explicit node cap failed"
+          
+          echo "=== ENVIRONMENT DEBUG ==="
+          echo "PATH: $PATH"
+          echo "NODE_PATH: $NODE_PATH"
+          which node
+          which npm
+          which cap || echo "cap not found"
+
+  setup-node-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      # EXPERIMENT 3: Try different setup-node configurations
+      - name: Setup Node.js with explicit version
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.18.0'
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Install and test
+        run: |
+          npm ci
+          npm run build
+          
+          echo "=== CAPACITOR CLI TEST ==="
+          npx @capacitor/cli@latest --version || echo "Latest CLI failed"
+          npx @capacitor/cli@6.1.2 --version || echo "6.1.2 CLI failed"
+          
+          echo "=== TRYING SYNC ==="
+          npx @capacitor/cli@6.1.2 sync android || echo "Sync failed but continuing"
+          
+          echo "=== FALLBACK COPY ==="
+          mkdir -p android/app/src/main/assets/public
+          if [ -d "dist" ]; then
+            cp -r dist/* android/app/src/main/assets/public/
+            echo "Assets copied successfully"
+          fi
+
+  docker-test:
+    runs-on: ubuntu-latest
+    container: node:20-alpine
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Test in clean Node.js container
+        run: |
+          echo "=== CONTAINER NODE TEST ==="
+          node -v
+          npm -v
+          
+          npm ci
+          npm run build
+          
+          echo "=== CAPACITOR IN CONTAINER ==="
+          npm install -g @capacitor/cli@latest
+          cap --version || echo "Container cap failed"
+          
+          echo "=== TRYING SYNC IN CONTAINER ==="
+          cap sync android || {
+            echo "Container sync failed - manual copy"
+            mkdir -p android/app/src/main/assets/public
+            [ -d "dist" ] && cp -r dist/* android/app/src/main/assets/public/
+          }
