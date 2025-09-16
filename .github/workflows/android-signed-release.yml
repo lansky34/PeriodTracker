@@ -102,7 +102,7 @@ jobs:
     - name: 🔄 Sync Android Capacitor
       run: |
         echo "Syncing Capacitor Android project..."
-        npx cap sync android --no-build
+        npx cap sync android
         
         echo "✅ Capacitor Android sync completed"
         
