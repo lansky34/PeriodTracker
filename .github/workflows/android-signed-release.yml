@@ -269,6 +269,67 @@ jobs:
         retention-days: 30
         if-no-files-found: error
         
+    - name: 🏷️ Create GitHub Release with AAB
+      if: ${{ github.event.inputs.build_type == 'release' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        AAB_PATH: android/app/build/outputs/bundle/release/app-release.aab
+      run: |
+        echo "Creating GitHub release with signed AAB..."
+        
+        # Set release variables
+        RELEASE_TAG="v${{ github.event.inputs.app_version }}-build${{ github.event.inputs.version_code }}"
+        RELEASE_NAME="FlowTracker v${{ github.event.inputs.app_version }} (Build ${{ github.event.inputs.version_code }})"
+        AAB_NAME="FlowTracker-v${{ github.event.inputs.app_version }}-signed.aab"
+        
+        # Create release notes
+        cat > release_notes.md << EOF
+        # 🤖 FlowTracker Android Release
+        
+        **Version:** ${{ github.event.inputs.app_version }}  
+        **Build:** ${{ github.event.inputs.version_code }}  
+        **Package:** ${{ env.PACKAGE_NAME }}  
+        **Signed:** ✅ Ready for Play Store
+        
+        ## 📱 Installation
+        - Download the AAB file below
+        - Upload to Google Play Console for distribution
+        - Or convert to APK using bundletool for direct installation
+        
+        ## 🔐 Security
+        - Signed with production keystore
+        - Ready for Play Store submission
+        - All security checks passed
+        
+        ## 📊 Build Info
+        - Built on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        - Commit: ${{ github.sha }}
+        - Workflow: ${{ github.run_id }}
+        EOF
+        
+        # Check if release already exists
+        if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+          echo "Release $RELEASE_TAG already exists, deleting..."
+          gh release delete "$RELEASE_TAG" --yes
+        fi
+        
+        # Create new release
+        gh release create "$RELEASE_TAG" \
+          --title "$RELEASE_NAME" \
+          --notes-file release_notes.md \
+          --draft=false \
+          --prerelease=false
+          
+        # Upload AAB file
+        gh release upload "$RELEASE_TAG" "$AAB_PATH" --clobber
+        
+        # Rename uploaded file for clarity
+        gh release upload "$RELEASE_TAG" "$AAB_PATH" --clobber --with-name "$AAB_NAME"
+        
+        echo "✅ GitHub release created successfully!"
+        echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/$RELEASE_TAG"
+        echo "📱 AAB File: $AAB_NAME"
+        
     - name: 🚀 Upload to Play Console
       if: ${{ github.event.inputs.upload_to_play_console == 'true' && github.event.inputs.build_type == 'release' }}
       env:
