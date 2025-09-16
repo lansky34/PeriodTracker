@@ -12,5 +12,18 @@
     <true/>
     <key>compileBitcode</key>
     <false/>
+    <key>signingStyle</key>
+    <string>automatic</string>
+    <key>destination</key>
+    <string>export</string>
+    <key>stripSwiftSymbols</key>
+    <true/>
+    <key>thinning</key>
+    <string>&lt;none&gt;</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>xyz.flowtracker.app</key>
+        <string>FlowTracker Distribution</string>
+    </dict>
 </dict>
 </plist>

@@ -176,9 +176,10 @@ jobs:
       with:
         name: flowtracker-ios-archive
         path: |
-          ios/App/build/FlowTracker.xcarchive
-          ios/App/build/export/FlowTracker.ipa
+          ios/App/build/*.xcarchive
+          ios/App/build/export/*.ipa
         retention-days: 30
+        if-no-files-found: warn
         
     - name: 📤 Upload Build Logs
       if: always()
