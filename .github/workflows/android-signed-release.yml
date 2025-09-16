@@ -1,5 +1,30 @@
 name: 🤖 Android Signed Release Build
 
+# CRITICAL KEYSTORE REQUIREMENTS:
+# ================================
+# 🔑 Google Play Store requires the EXACT SAME signing key for all app updates
+# 🚨 If you use a different key, Google Play will REJECT your upload permanently
+# 📋 To set up signing secrets (REQUIRED for first-time setup):
+#
+#   1. Generate a keystore ONCE (save this file permanently!):
+#      keytool -genkey -v -keystore my-release-key.jks -alias flowtracker-release \
+#        -keyalg RSA -keysize 2048 -validity 10000
+#
+#   2. Encode the keystore file to base64:
+#      base64 -i my-release-key.jks | tr -d '\n'
+#
+#   3. Add these GitHub repository secrets:
+#      - ANDROID_KEYSTORE_BASE64: The base64 string from step 2
+#      - ANDROID_KEYSTORE_PASSWORD: Your keystore password
+#      - ANDROID_KEY_PASSWORD: Your key password
+#      - ANDROID_KEY_ALIAS: flowtracker-release
+#
+#   4. NEVER change these secrets once your app is published to Google Play!
+#      Keep secure backups of the original keystore file.
+#
+# ⚠️  WARNING: If you lose your keystore or change these secrets, you'll need to
+#     publish your app as a completely new application on Google Play Store.
+
 on:
   workflow_dispatch:
     inputs:
@@ -81,41 +106,63 @@ jobs:
         
         echo "✅ Capacitor Android sync completed"
         
-    - name: 🔐 Generate Release Keystore
+    - name: 🔐 Restore Release Keystore
       env:
-        KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'flowtracker2024!' }}
-        KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || 'flowtracker2024!' }}
-        KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'flowtracker-release' }}
+        KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       run: |
-        cd android
-        
-        echo "Generating Android release keystore..."
-        
-        # Generate keystore if it doesn't exist
-        if [ ! -f "my-release-key.jks" ]; then
-          keytool -genkey -v \
-            -keystore my-release-key.jks \
-            -alias "$KEY_ALIAS" \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass "$KEYSTORE_PASSWORD" \
-            -keypass "$KEY_PASSWORD" \
-            -dname "CN=FlowTracker, OU=Mobile App, O=FlowTracker Inc, L=San Francisco, ST=CA, C=US"
-            
-          echo "✅ Keystore generated successfully"
-        else
-          echo "✅ Using existing keystore"
+        # CRITICAL: Validate that all required secrets are present
+        # The keystore MUST be the same across all releases or Google Play will reject uploads
+        if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEYSTORE_BASE64" ]; then
+          echo "❌ Missing required Android signing secrets:"
+          echo "   ANDROID_KEYSTORE_PASSWORD: ${KEYSTORE_PASSWORD:+✅ Set}${KEYSTORE_PASSWORD:-❌ Missing}"
+          echo "   ANDROID_KEY_PASSWORD: ${KEY_PASSWORD:+✅ Set}${KEY_PASSWORD:-❌ Missing}"
+          echo "   ANDROID_KEY_ALIAS: ${KEY_ALIAS:+✅ Set}${KEY_ALIAS:-❌ Missing}"
+          echo "   ANDROID_KEYSTORE_BASE64: ${KEYSTORE_BASE64:+✅ Set}${KEYSTORE_BASE64:-❌ Missing}"
+          echo ""
+          echo "🚨 CRITICAL: Google Play Store requires the same signing key for all app updates!"
+          echo "📋 To set up these secrets:"
+          echo "   1. Generate a keystore once: keytool -genkey -v -keystore my-release-key.jks ..."
+          echo "   2. Encode it: base64 -i my-release-key.jks | tr -d '\n'"
+          echo "   3. Add the base64 string as ANDROID_KEYSTORE_BASE64 secret"
+          echo "   4. Add your passwords and alias as other secrets"
+          echo "   5. NEVER change these values once your app is published!"
+          exit 1
         fi
         
-        # Verify keystore
+        cd android/app
+        
+        echo "Restoring Android release keystore from secure storage..."
+        
+        # Decode and restore the keystore from the base64 secret
+        echo "$KEYSTORE_BASE64" | base64 -d > my-release-key.jks
+        
+        # Verify the restored keystore
+        if [ ! -f "my-release-key.jks" ]; then
+          echo "❌ Failed to restore keystore file"
+          exit 1
+        fi
+        
+        # Verify keystore integrity and contents
+        echo "Verifying keystore integrity..."
+        if ! keytool -list -v -keystore my-release-key.jks -storepass "$KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+          echo "❌ Keystore verification failed - check ANDROID_KEYSTORE_PASSWORD"
+          exit 1
+        fi
+        
+        # Display keystore information (without sensitive data)
+        echo "✅ Keystore restored and verified successfully"
         keytool -list -v -keystore my-release-key.jks -storepass "$KEYSTORE_PASSWORD" | head -20
+        
+        echo "✅ Keystore ready for signing at: $(pwd)/my-release-key.jks"
         
     - name: 🔑 Setup Signing Environment
       env:
-        KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'flowtracker2024!' }}
-        KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || 'flowtracker2024!' }}
-        KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'flowtracker-release' }}
+        KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       run: |
         echo "Setting up Android signing environment..."
         
@@ -161,25 +208,57 @@ jobs:
           aapt2 dump badging "$AAB_PATH" | head -5
         fi
         
-    - name: 🔍 Verify AAB Signing
+    - name: 📥 Download and Setup Bundletool
+      run: |
+        echo "Setting up bundletool for AAB validation..."
+        
+        # Download latest bundletool
+        BUNDLETOOL_VERSION="1.15.6"
+        wget -q "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar" -O bundletool.jar
+        
+        # Verify download
+        if [ ! -f "bundletool.jar" ]; then
+          echo "❌ Failed to download bundletool"
+          exit 1
+        fi
+        
+        echo "✅ Bundletool downloaded successfully"
+        java -jar bundletool.jar version
+        
+    - name: 🔍 Verify AAB Signing and Validation
       working-directory: android
       run: |
-        echo "Verifying AAB signing..."
+        echo "Verifying AAB signing and structure..."
         
-        # Check if jarsigner is available
+        # Validate AAB structure with bundletool
+        echo "Validating AAB structure..."
+        java -jar ../bundletool.jar validate --bundle="$AAB_PATH"
+        if [ $? -eq 0 ]; then
+          echo "✅ AAB structure validation passed"
+        else
+          echo "❌ AAB structure validation failed"
+          exit 1
+        fi
+        
+        # Check AAB signing status
+        echo "Checking AAB signing status..."
         if command -v jarsigner >/dev/null 2>&1; then
-          jarsigner -verify -verbose -certs "$AAB_PATH" | grep "jar verified" || {
-            echo "⚠️  AAB verification failed - but this might be expected for bundletool format"
-          }
+          if jarsigner -verify "$AAB_PATH" >/dev/null 2>&1; then
+            echo "✅ AAB is properly signed"
+          else
+            echo "❌ AAB signing verification failed"
+            exit 1
+          fi
         fi
         
-        # Use bundletool if available
-        if command -v bundletool >/dev/null 2>&1; then
-          bundletool validate --bundle="$AAB_PATH"
-          echo "✅ AAB validation passed"
-        fi
-        
+        # Display AAB information
+        echo "AAB Information:"
         ls -la "$AAB_PATH"
+        echo "AAB Size: $(du -h "$AAB_PATH" | cut -f1)"
+        
+        # Extract and display manifest info
+        echo "Extracting AAB metadata..."
+        java -jar ../bundletool.jar dump manifest --bundle="$AAB_PATH" | head -20
         
     - name: 📤 Upload AAB Artifact
       uses: actions/upload-artifact@v4
@@ -187,7 +266,6 @@ jobs:
         name: ${{ env.APP_NAME }}-${{ github.event.inputs.app_version }}-${{ github.event.inputs.build_type }}
         path: |
           android/app/build/outputs/bundle/**/*.aab
-          android/my-release-key.jks
         retention-days: 30
         if-no-files-found: error
         

@@ -22,6 +22,9 @@ android {
     
     signingConfigs {
         release {
+            def signingConfigured = false
+            def signingMethod = "none"
+            
             // Try multiple signing methods in order of preference
             if (project.hasProperty('MYAPP_RELEASE_STORE_FILE')) {
                 // Method 1: gradle.properties
@@ -29,24 +32,42 @@ android {
                 storePassword MYAPP_RELEASE_STORE_PASSWORD
                 keyAlias MYAPP_RELEASE_KEY_ALIAS
                 keyPassword MYAPP_RELEASE_KEY_PASSWORD
+                signingConfigured = true
+                signingMethod = "gradle.properties"
             } else if (System.getenv('ANDROID_KEYSTORE_PASSWORD')) {
                 // Method 2: Environment variables (GitHub Actions)
-                storeFile file('my-release-key.jks')
+                def keystoreFile = file('my-release-key.jks')
+                if (!keystoreFile.exists()) {
+                    throw new GradleException("Keystore file not found: ${keystoreFile.absolutePath}")
+                }
+                storeFile keystoreFile
                 storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
                 keyAlias System.getenv('ANDROID_KEY_ALIAS') ?: 'flowtracker-release'
                 keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+                signingConfigured = true
+                signingMethod = "environment variables"
             } else {
                 // Method 3: keystore.properties file
                 def keystorePropertiesFile = rootProject.file("keystore.properties")
                 if (keystorePropertiesFile.exists()) {
                     def keystoreProperties = new Properties()
                     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-                    storeFile file(keystoreProperties['storeFile'])
+                    def keystoreFile = file(keystoreProperties['storeFile'])
+                    if (!keystoreFile.exists()) {
+                        throw new GradleException("Keystore file not found: ${keystoreFile.absolutePath}")
+                    }
+                    storeFile keystoreFile
                     storePassword keystoreProperties['storePassword']
                     keyAlias keystoreProperties['keyAlias']
                     keyPassword keystoreProperties['keyPassword']
+                    signingConfigured = true
+                    signingMethod = "keystore.properties"
                 }
             }
+            
+            // Store signing status for validation in buildTypes
+            project.ext.releaseSigningConfigured = signingConfigured
+            project.ext.releaseSigningMethod = signingMethod
         }
     }
     
@@ -54,10 +75,46 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            // Only sign if keystore is available
-            if (signingConfigs.release.storeFile?.exists()) {
+            
+            // Enforce signing for release builds
+            if (project.ext.releaseSigningConfigured) {
                 signingConfig signingConfigs.release
+                println "✅ Release build signed using: ${project.ext.releaseSigningMethod}"
+            } else {
+                throw new GradleException("""
+                    ❌ RELEASE BUILD SIGNING ERROR:
+                    Release builds must be properly signed for distribution.
+                    
+                    Please configure signing using one of these methods:
+                    
+                    1. Environment Variables (recommended for CI/CD):
+                       - ANDROID_KEYSTORE_PASSWORD
+                       - ANDROID_KEY_PASSWORD  
+                       - ANDROID_KEY_ALIAS
+                       - Place keystore file at: android/app/my-release-key.jks
+                    
+                    2. gradle.properties:
+                       - MYAPP_RELEASE_STORE_FILE
+                       - MYAPP_RELEASE_STORE_PASSWORD
+                       - MYAPP_RELEASE_KEY_ALIAS
+                       - MYAPP_RELEASE_KEY_PASSWORD
+                    
+                    3. keystore.properties file:
+                       - Create android/keystore.properties with:
+                         storeFile=path/to/keystore.jks
+                         storePassword=your_store_password
+                         keyAlias=your_key_alias
+                         keyPassword=your_key_password
+                    
+                    For debug builds, use: ./gradlew assembleDebug
+                """)
             }
+        }
+        
+        debug {
+            // Debug builds don't require signing configuration
+            applicationIdSuffix ".debug"
+            debuggable true
         }
     }
     
