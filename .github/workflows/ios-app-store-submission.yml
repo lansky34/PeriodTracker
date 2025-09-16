@@ -1,0 +1,387 @@
+name: 🍎 iOS App Store Submission Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_configuration:
+        description: 'Build Configuration'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+        - Release
+        - Debug
+      export_method:
+        description: 'Export Method'
+        required: true
+        default: 'app-store'
+        type: choice
+        options:
+        - app-store
+        - ad-hoc
+        - development
+        - enterprise
+      upload_to_testflight:
+        description: 'Upload to TestFlight'
+        required: true
+        default: false
+        type: boolean
+      app_version:
+        description: 'App Version (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+        type: string
+      build_number:
+        description: 'Build Number'
+        required: true
+        default: '1'
+        type: string
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+  APP_BUNDLE_ID: xyz.flowtracker.app
+  APP_NAME: FlowTracker
+
+jobs:
+  ios-build-and-submit:
+    name: 🍎 Build & Submit iOS App
+    runs-on: macos-latest
+    timeout-minutes: 60
+    
+    steps:
+    - name: 📦 Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: 🔧 Setup Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: 📱 Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+        
+    - name: 🔐 Setup Ruby and Bundler
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.1'
+        bundler-cache: true
+        
+    - name: 💿 Install Node Dependencies
+      run: |
+        npm ci --prefer-offline --no-audit
+        
+    - name: 🏗️ Build Web Assets
+      run: |
+        echo "Building FlowTracker web assets..."
+        npm run build
+        
+        # Verify build output
+        if [ ! -d "dist/public" ]; then
+          echo "❌ Build failed - dist/public directory not found"
+          exit 1
+        fi
+        
+        echo "✅ Web assets built successfully"
+        ls -la dist/public/ | head -10
+        
+    - name: 🔄 Sync iOS Capacitor
+      run: |
+        echo "Syncing Capacitor iOS project..."
+        npx cap sync ios --no-build
+        
+        # Verify iOS project
+        if [ ! -f "ios/App/App.xcworkspace/contents.xcworkspacedata" ]; then
+          echo "❌ iOS workspace not found"
+          exit 1
+        fi
+        
+        echo "✅ Capacitor iOS sync completed"
+        
+    - name: 💎 Install CocoaPods Dependencies
+      run: |
+        cd ios/App
+        echo "Installing CocoaPods dependencies..."
+        
+        # Clean and install pods
+        pod cache clean --all
+        pod deintegrate || true
+        pod install --repo-update --clean-install
+        
+        echo "✅ CocoaPods installation completed"
+        
+    - name: 🔐 Import Code Signing Certificates
+      if: ${{ github.event.inputs.export_method == 'app-store' || github.event.inputs.export_method == 'ad-hoc' }}
+      env:
+        APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+        APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        APPLE_PROVISIONING_PROFILE: ${{ secrets.APPLE_PROVISIONING_PROFILE }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      run: |
+        echo "Setting up code signing..."
+        
+        # Create temporary keychain
+        KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+        KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+        
+        security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+        security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed s/\"//g)
+        
+        # Import certificate
+        if [ -n "$APPLE_CERTIFICATE" ]; then
+          echo "$APPLE_CERTIFICATE" | base64 -d > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/xcodebuild
+            
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo "✅ Certificate imported successfully"
+        else
+          echo "⚠️  No certificate provided - using development signing"
+        fi
+        
+        # Install provisioning profile
+        if [ -n "$APPLE_PROVISIONING_PROFILE" ]; then
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$APPLE_PROVISIONING_PROFILE" | base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/FlowTracker.mobileprovision
+          echo "✅ Provisioning profile installed"
+        fi
+        
+    - name: 🔧 Configure iOS Project Settings
+      run: |
+        cd ios/App
+        
+        # Update app version and build number
+        /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${{ github.event.inputs.app_version }}" App/Info.plist
+        /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.event.inputs.build_number }}" App/Info.plist
+        
+        echo "✅ App version set to ${{ github.event.inputs.app_version }} (${{ github.event.inputs.build_number }})"
+        
+    - name: 📱 Build iOS Archive
+      run: |
+        cd ios/App
+        
+        echo "Building iOS archive for App Store..."
+        mkdir -p build/logs
+        
+        # Determine signing configuration
+        if [ "${{ github.event.inputs.export_method }}" = "app-store" ] && [ -n "${{ secrets.APPLE_TEAM_ID }}" ]; then
+          SIGNING_ARGS="DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }}"
+          echo "Using App Store signing with team: ${{ secrets.APPLE_TEAM_ID }}"
+        else
+          SIGNING_ARGS="CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO"
+          echo "Using development signing (no certificates required)"
+        fi
+        
+        # Create archive
+        set -o pipefail
+        xcodebuild archive \
+          -workspace App.xcworkspace \
+          -scheme App \
+          -configuration ${{ github.event.inputs.build_configuration }} \
+          -destination generic/platform=iOS \
+          -archivePath build/FlowTracker.xcarchive \
+          -allowProvisioningUpdates \
+          MARKETING_VERSION=${{ github.event.inputs.app_version }} \
+          CURRENT_PROJECT_VERSION=${{ github.event.inputs.build_number }} \
+          PRODUCT_BUNDLE_IDENTIFIER=${{ env.APP_BUNDLE_ID }} \
+          $SIGNING_ARGS \
+          | tee build/logs/archive.log
+          
+        # Verify archive was created
+        if [ ! -d "build/FlowTracker.xcarchive" ]; then
+          echo "❌ Archive creation failed"
+          echo "Build log:"
+          cat build/logs/archive.log
+          exit 1
+        fi
+        
+        echo "✅ iOS archive created successfully"
+        
+    - name: 🔧 Prepare Export Options
+      run: |
+        cd ios/App
+        
+        # Create ExportOptions.plist dynamically
+        cat > build/ExportOptions.plist << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>${{ github.event.inputs.export_method }}</string>
+    <key>uploadBitcode</key>
+    <false/>
+    <key>uploadSymbols</key>
+    <true/>
+    <key>compileBitcode</key>
+    <false/>
+    <key>signingStyle</key>
+    <string>automatic</string>
+    <key>destination</key>
+    <string>export</string>
+    <key>stripSwiftSymbols</key>
+    <true/>
+    <key>thinning</key>
+    <string>&lt;none&gt;</string>
+EOF
+        
+        # Add team ID if available
+        if [ -n "${{ secrets.APPLE_TEAM_ID }}" ]; then
+          cat >> build/ExportOptions.plist << EOF
+    <key>teamID</key>
+    <string>${{ secrets.APPLE_TEAM_ID }}</string>
+EOF
+        fi
+        
+        # Close plist
+        cat >> build/ExportOptions.plist << EOF
+</dict>
+</plist>
+EOF
+        
+        echo "✅ Export options configured for ${{ github.event.inputs.export_method }}"
+        cat build/ExportOptions.plist
+        
+    - name: 📦 Export IPA
+      run: |
+        cd ios/App
+        
+        echo "Exporting IPA for ${{ github.event.inputs.export_method }}..."
+        
+        # Export archive to IPA
+        set -o pipefail
+        xcodebuild -exportArchive \
+          -archivePath build/FlowTracker.xcarchive \
+          -exportPath build/export \
+          -exportOptionsPlist build/ExportOptions.plist \
+          -allowProvisioningUpdates \
+          | tee build/logs/export.log
+          
+        # Find the generated IPA
+        IPA_FILE=$(find build/export -name "*.ipa" | head -1)
+        
+        if [ -z "$IPA_FILE" ]; then
+          echo "❌ IPA export failed"
+          echo "Export log:"
+          cat build/logs/export.log
+          echo "Export directory contents:"
+          ls -la build/export/ || echo "Export directory not found"
+          exit 1
+        fi
+        
+        # Get IPA info
+        IPA_SIZE=$(ls -lh "$IPA_FILE" | awk '{print $5}')
+        IPA_NAME=$(basename "$IPA_FILE")
+        
+        echo "✅ IPA exported successfully"
+        echo "📱 File: $IPA_NAME"
+        echo "📦 Size: $IPA_SIZE"
+        echo "📍 Path: $IPA_FILE"
+        
+        # Set environment variables for next steps
+        echo "IPA_PATH=$IPA_FILE" >> $GITHUB_ENV
+        echo "IPA_NAME=$IPA_NAME" >> $GITHUB_ENV
+        echo "IPA_SIZE=$IPA_SIZE" >> $GITHUB_ENV
+        
+    - name: 🔍 Validate IPA
+      run: |
+        echo "Validating IPA structure..."
+        
+        if [ -n "$IPA_PATH" ] && [ -f "$IPA_PATH" ]; then
+          # Basic IPA validation
+          unzip -l "$IPA_PATH" | head -20
+          
+          # Check for required components
+          if unzip -l "$IPA_PATH" | grep -q "Payload/${{ env.APP_NAME }}.app/Info.plist"; then
+            echo "✅ IPA structure looks valid"
+          else
+            echo "⚠️  Warning: IPA structure may be invalid"
+          fi
+          
+          echo "📱 IPA ready for App Store submission!"
+        else
+          echo "❌ IPA validation failed - file not found"
+          exit 1
+        fi
+        
+    - name: 🚀 Upload to TestFlight (Optional)
+      if: ${{ github.event.inputs.upload_to_testflight == true && github.event.inputs.export_method == 'app-store' }}
+      env:
+        APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+        APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+      run: |
+        if [ -z "$APPLE_API_KEY_ID" ] || [ -z "$APPLE_API_ISSUER_ID" ] || [ -z "$APPLE_API_PRIVATE_KEY" ]; then
+          echo "⚠️  App Store Connect API credentials not configured"
+          echo "Skipping TestFlight upload - you can upload manually"
+          exit 0
+        fi
+        
+        echo "Uploading to TestFlight..."
+        
+        # Save API key
+        mkdir -p ~/.appstoreconnect/private_keys/
+        echo "$APPLE_API_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey_$APPLE_API_KEY_ID.p8
+        
+        # Upload to TestFlight
+        xcrun altool --upload-app \
+          --type ios \
+          --file "$IPA_PATH" \
+          --apiKey "$APPLE_API_KEY_ID" \
+          --apiIssuer "$APPLE_API_ISSUER_ID" \
+          --verbose
+          
+        echo "✅ IPA uploaded to TestFlight successfully!"
+        
+    - name: 📤 Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: FlowTracker-iOS-${{ github.event.inputs.app_version }}-${{ github.event.inputs.build_number }}
+        path: |
+          ios/App/build/FlowTracker.xcarchive
+          ios/App/build/export/*.ipa
+          ios/App/build/logs/
+        retention-days: 30
+        if-no-files-found: error
+        
+    - name: 📊 Build Summary
+      if: always()
+      run: |
+        echo "===========================================" 
+        echo "🍎 iOS App Store Build Summary"
+        echo "==========================================="
+        echo "📱 App: ${{ env.APP_NAME }}"
+        echo "🆔 Bundle ID: ${{ env.APP_BUNDLE_ID }}"
+        echo "📊 Version: ${{ github.event.inputs.app_version }} (${{ github.event.inputs.build_number }})"
+        echo "🏗️  Configuration: ${{ github.event.inputs.build_configuration }}"
+        echo "📦 Export Method: ${{ github.event.inputs.export_method }}"
+        echo "🚀 TestFlight Upload: ${{ github.event.inputs.upload_to_testflight }}"
+        
+        if [ -n "$IPA_SIZE" ]; then
+          echo "✅ IPA Generated: $IPA_NAME ($IPA_SIZE)"
+        else
+          echo "❌ IPA Generation: Failed"
+        fi
+        
+        echo "🛠️  Xcode Version: $(xcodebuild -version | head -1)"
+        echo "🍎 macOS Version: $(sw_vers -productVersion)"
+        echo "==========================================="
+        
+        if [ -f "$IPA_PATH" ]; then
+          echo ""
+          echo "🎉 SUCCESS! FlowTracker iOS app is ready for App Store submission!"
+          echo "📥 Download the IPA from the workflow artifacts"
+          echo "🚀 Upload to App Store Connect for review"
+        else
+          echo ""
+          echo "❌ Build failed - check the logs above for details"
+        fi
