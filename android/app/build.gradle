@@ -22,16 +22,30 @@ android {
     
     signingConfigs {
         release {
+            // Try multiple signing methods in order of preference
             if (project.hasProperty('MYAPP_RELEASE_STORE_FILE')) {
+                // Method 1: gradle.properties
                 storeFile file(MYAPP_RELEASE_STORE_FILE)
                 storePassword MYAPP_RELEASE_STORE_PASSWORD
                 keyAlias MYAPP_RELEASE_KEY_ALIAS
                 keyPassword MYAPP_RELEASE_KEY_PASSWORD
             } else if (System.getenv('ANDROID_KEYSTORE_PASSWORD')) {
+                // Method 2: Environment variables (GitHub Actions)
                 storeFile file('my-release-key.jks')
                 storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
-                keyAlias System.getenv('ANDROID_KEY_ALIAS')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS') ?: 'flowtracker-release'
                 keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+            } else {
+                // Method 3: keystore.properties file
+                def keystorePropertiesFile = rootProject.file("keystore.properties")
+                if (keystorePropertiesFile.exists()) {
+                    def keystoreProperties = new Properties()
+                    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+                    storeFile file(keystoreProperties['storeFile'])
+                    storePassword keystoreProperties['storePassword']
+                    keyAlias keystoreProperties['keyAlias']
+                    keyPassword keystoreProperties['keyPassword']
+                }
             }
         }
     }
