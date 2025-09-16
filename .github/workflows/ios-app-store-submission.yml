@@ -356,13 +356,13 @@ EOF
     - name: 📊 Build Summary
       if: always()
       run: |
-        echo "===========================================" 
+        echo "==========================================="
         echo "🍎 iOS App Store Build Summary"
         echo "==========================================="
         echo "📱 App: ${{ env.APP_NAME }}"
         echo "🆔 Bundle ID: ${{ env.APP_BUNDLE_ID }}"
         echo "📊 Version: ${{ github.event.inputs.app_version }} (${{ github.event.inputs.build_number }})"
-        echo "🏗️  Configuration: ${{ github.event.inputs.build_configuration }}"
+        echo "🏗️ Configuration: ${{ github.event.inputs.build_configuration }}"
         echo "📦 Export Method: ${{ github.event.inputs.export_method }}"
         echo "🚀 TestFlight Upload: ${{ github.event.inputs.upload_to_testflight }}"
         
