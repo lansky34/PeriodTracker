@@ -320,11 +320,9 @@ jobs:
           --draft=false \
           --prerelease=false
           
-        # Upload AAB file
-        gh release upload "$RELEASE_TAG" "$AAB_PATH" --clobber
-        
-        # Rename uploaded file for clarity
-        gh release upload "$RELEASE_TAG" "$AAB_PATH" --clobber --with-name "$AAB_NAME"
+        # Upload AAB file with custom name
+        cp "$AAB_PATH" "$AAB_NAME"
+        gh release upload "$RELEASE_TAG" "$AAB_NAME" --clobber
         
         echo "✅ GitHub release created successfully!"
         echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/$RELEASE_TAG"
