@@ -121,7 +121,24 @@ jobs:
           exit 1
         fi
         
-        echo "✅ Keystore restored successfully"
+        # Verify keystore integrity and contents
+        echo "Verifying keystore integrity..."
+        if ! keytool -list -v -keystore my-release-key.jks -storepass "$KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+          echo "❌ Keystore verification failed - check ANDROID_KEYSTORE_PASSWORD"
+          exit 1
+        fi
+        
+        # Create keystore.properties for Gradle signing
+        echo "Creating keystore.properties for Gradle..."
+        cat > ../keystore.properties << EOF
+        storeFile=app/my-release-key.jks
+        storePassword=$KEYSTORE_PASSWORD
+        keyAlias=$KEY_ALIAS
+        keyPassword=$KEY_PASSWORD
+        EOF
+        
+        echo "✅ Keystore restored and verified successfully"
+        echo "✅ keystore.properties created for Gradle"
         
     - name: 🔑 Setup Signing Environment
       env:
@@ -160,6 +177,19 @@ jobs:
         AAB_SIZE=$(du -h "$AAB_PATH" | cut -f1)
         echo "✅ AAB created successfully: $AAB_SIZE"
         echo "AAB_PATH=$AAB_PATH" >> $GITHUB_ENV
+        
+        # Verify AAB is properly signed
+        echo "Verifying AAB signature..."
+        if command -v jarsigner >/dev/null 2>&1; then
+          if jarsigner -verify "$AAB_PATH" >/dev/null 2>&1; then
+            echo "✅ AAB is properly signed"
+          else
+            echo "❌ AAB signature verification failed"
+            exit 1
+          fi
+        else
+          echo "⚠️  jarsigner not available - skipping signature verification"
+        fi
         
     - name: 📥 Download and Setup Bundletool
       run: |
@@ -391,7 +421,7 @@ EOF
         echo "🛠️ Workflow: FIXED VERSION (No --with-name errors!)"
         echo "==========================================="
         
-        if [ -f "$AAB_PATH" ]; then
+        if [ -f "android/$AAB_PATH" ]; then
           echo ""
           echo "🎉 SUCCESS! FlowTracker Android app built with FIXED workflow!"
           echo "📥 Download the AAB from the workflow artifacts"
