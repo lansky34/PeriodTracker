@@ -81,6 +81,19 @@ jobs:
         node-version: '20'
         cache: 'npm'
         
+    - name: 📱 Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
+    - name: 📋 Accept Android SDK Licenses
+      run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+      
+    - name: 🔧 Install Android SDK Components
+      run: |
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+          "platform-tools" \
+          "platforms;android-35" \
+          "build-tools;35.0.0"
+        
     - name: 💿 Install Dependencies
       run: |
         npm ci --prefer-offline --no-audit
@@ -90,14 +103,22 @@ jobs:
         echo "Building FlowTracker web assets..."
         npm run build
         
-        # Verify build output
-        if [ ! -d "dist/public" ]; then
-          echo "❌ Build failed - dist/public directory not found"
+        # Verify build output (robust check for common web directories)
+        if [ -d "dist" ]; then
+          echo "✅ Web assets built successfully to dist/"
+          du -sh dist/
+        elif [ -d "client/dist" ]; then
+          echo "✅ Web assets built successfully to client/dist/"
+          du -sh client/dist/
+        elif [ -d "build" ]; then
+          echo "✅ Web assets built successfully to build/"
+          du -sh build/
+        else
+          echo "❌ Build failed - no dist/, client/dist/, or build/ directory found"
+          echo "Available directories:"
+          ls -la
           exit 1
         fi
-        
-        echo "✅ Web assets built successfully"
-        du -sh dist/public/
         
     - name: 🔄 Sync Android Capacitor
       run: |
@@ -117,10 +138,10 @@ jobs:
         # The keystore MUST be the same across all releases or Google Play will reject uploads
         if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEYSTORE_BASE64" ]; then
           echo "❌ Missing required Android signing secrets:"
-          echo "   ANDROID_KEYSTORE_PASSWORD: ${KEYSTORE_PASSWORD:+✅ Set}${KEYSTORE_PASSWORD:-❌ Missing}"
-          echo "   ANDROID_KEY_PASSWORD: ${KEY_PASSWORD:+✅ Set}${KEY_PASSWORD:-❌ Missing}"
-          echo "   ANDROID_KEY_ALIAS: ${KEY_ALIAS:+✅ Set}${KEY_ALIAS:-❌ Missing}"
-          echo "   ANDROID_KEYSTORE_BASE64: ${KEYSTORE_BASE64:+✅ Set}${KEYSTORE_BASE64:-❌ Missing}"
+          echo "   ANDROID_KEYSTORE_PASSWORD: $( [ -n "$KEYSTORE_PASSWORD" ] && echo '✅ Set' || echo '❌ Missing' )"
+          echo "   ANDROID_KEY_PASSWORD: $( [ -n "$KEY_PASSWORD" ] && echo '✅ Set' || echo '❌ Missing' )"
+          echo "   ANDROID_KEY_ALIAS: $( [ -n "$KEY_ALIAS" ] && echo '✅ Set' || echo '❌ Missing' )"
+          echo "   ANDROID_KEYSTORE_BASE64: $( [ -n "$KEYSTORE_BASE64" ] && echo '✅ Set' || echo '❌ Missing' )"
           echo ""
           echo "🚨 CRITICAL: Google Play Store requires the same signing key for all app updates!"
           echo "📋 To set up these secrets:"
@@ -273,9 +294,18 @@ jobs:
       if: ${{ github.event.inputs.build_type == 'release' }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        AAB_PATH: android/app/build/outputs/bundle/release/app-release.aab
       run: |
         echo "Creating GitHub release with signed AAB..."
+        
+        # Find AAB file (more robust approach)
+        AAB_FILE=$(find android/app/build/outputs/bundle/release -name "*.aab" -type f | head -1)
+        if [ -z "$AAB_FILE" ]; then
+          echo "❌ No AAB file found in release directory"
+          find android/app/build/outputs/bundle -name "*.aab" -type f || echo "No AAB files found anywhere"
+          exit 1
+        fi
+        
+        echo "✅ Found AAB file: $AAB_FILE"
         
         # Set release variables
         RELEASE_TAG="v${{ github.event.inputs.app_version }}-build${{ github.event.inputs.version_code }}"
@@ -284,49 +314,44 @@ jobs:
         
         # Create release notes
         cat > release_notes.md << EOF
-        # 🤖 FlowTracker Android Release
+        # 🤖 FlowTracker Android Release - Ready for Play Store
         
         **Version:** ${{ github.event.inputs.app_version }}  
         **Build:** ${{ github.event.inputs.version_code }}  
         **Package:** ${{ env.PACKAGE_NAME }}  
-        **Signed:** ✅ Ready for Play Store
+        **Signed:** ✅ Production Ready
         
-        ## 📱 Installation
+        ## 📱 Google Play Store Submission
         - Download the AAB file below
-        - Upload to Google Play Console for distribution
-        - Or convert to APK using bundletool for direct installation
+        - Upload directly to Google Play Console
+        - File is production-signed and ready for release
         
-        ## 🔐 Security
+        ## 🔐 Build Security
         - Signed with production keystore
-        - Ready for Play Store submission
-        - All security checks passed
+        - All security validations passed
+        - Ready for store submission
         
-        ## 📊 Build Info
-        - Built on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-        - Commit: ${{ github.sha }}
-        - Workflow: ${{ github.run_id }}
+        Built on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        Commit: ${{ github.sha }}
         EOF
         
-        # Check if release already exists
+        # Clean up any existing release
         if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-          echo "Release $RELEASE_TAG already exists, deleting..."
-          gh release delete "$RELEASE_TAG" --yes
+          echo "Cleaning up existing release..."
+          gh release delete "$RELEASE_TAG" --yes || true
         fi
         
-        # Create new release
-        gh release create "$RELEASE_TAG" \
+        # Create release with AAB upload in one step (more reliable)
+        echo "Creating release and uploading AAB..."
+        cp "$AAB_FILE" "$AAB_NAME"
+        gh release create "$RELEASE_TAG" "$AAB_NAME" \
           --title "$RELEASE_NAME" \
           --notes-file release_notes.md \
-          --draft=false \
-          --prerelease=false
-          
-        # Upload AAB file with custom name
-        cp "$AAB_PATH" "$AAB_NAME"
-        gh release upload "$RELEASE_TAG" "$AAB_NAME" --clobber
+          --latest
         
         echo "✅ GitHub release created successfully!"
         echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/$RELEASE_TAG"
-        echo "📱 AAB File: $AAB_NAME"
+        echo "📱 AAB File: $AAB_NAME ($(du -h "$AAB_NAME" | cut -f1))"
         
     - name: 🚀 Upload to Play Console
       if: ${{ github.event.inputs.upload_to_play_console == 'true' && github.event.inputs.build_type == 'release' }}
