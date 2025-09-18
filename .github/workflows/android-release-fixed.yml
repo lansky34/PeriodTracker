@@ -250,7 +250,7 @@ jobs:
         echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/$RELEASE_TAG"
         
     - name: 🚀 Upload to Google Play Console
-      if: ${{ github.event.inputs.upload_to_play_console == 'true' && github.event.inputs.build_type == 'release' }}
+      if: ${{ inputs.upload_to_play_console && inputs.build_type == 'release' }}
       env:
         PLAY_CONSOLE_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_CONSOLE_SERVICE_ACCOUNT_JSON }}
       run: |
@@ -339,7 +339,7 @@ try:
             'track': 'internal',
             'releases': [{
                 'name': f'Release v{version_name}',
-                'versionCodes': [str(upload_result['versionCode'])],
+                'versionCodes': [upload_result['versionCode']],
                 'status': 'completed'
             }]
         }
