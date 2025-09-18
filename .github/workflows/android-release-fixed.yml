@@ -23,6 +23,11 @@ on:
         options:
         - release
         - debug
+      upload_to_play_console:
+        description: 'Upload to Google Play Console (requires PLAY_CONSOLE_SERVICE_ACCOUNT_JSON secret)'
+        required: true
+        default: false
+        type: boolean
 
 env:
   APP_NAME: FlowTracker
@@ -243,6 +248,134 @@ jobs:
         
         echo "✅ GitHub release created successfully with FIXED workflow!"
         echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/$RELEASE_TAG"
+        
+    - name: 🚀 Upload to Google Play Console
+      if: ${{ github.event.inputs.upload_to_play_console == 'true' && github.event.inputs.build_type == 'release' }}
+      env:
+        PLAY_CONSOLE_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_CONSOLE_SERVICE_ACCOUNT_JSON }}
+      run: |
+        echo "🚀 Starting Google Play Console upload..."
+        
+        if [ -z "$PLAY_CONSOLE_SERVICE_ACCOUNT_JSON" ]; then
+          echo "❌ PLAY_CONSOLE_SERVICE_ACCOUNT_JSON secret not found"
+          echo "Please add your Google Play Console service account JSON as a GitHub secret"
+          echo "See: https://github.com/${{ github.repository }}/settings/secrets/actions"
+          exit 1
+        fi
+        
+        # Find AAB file
+        AAB_FILE=$(find android/app/build/outputs/bundle/release -name "*.aab" -type f | head -1)
+        if [ -z "$AAB_FILE" ]; then
+          echo "❌ No AAB file found for upload"
+          exit 1
+        fi
+        
+        echo "📱 App Package: ${{ env.PACKAGE_NAME }}"
+        echo "📁 AAB File: $AAB_FILE"
+        echo "📊 Version: ${{ github.event.inputs.app_version }} (Code: ${{ github.event.inputs.version_code }})"
+        
+        # Setup service account credentials
+        echo "$PLAY_CONSOLE_SERVICE_ACCOUNT_JSON" > /tmp/play-console-service-account.json
+        
+        # Install Google Play CLI (using python approach for better compatibility)
+        echo "Installing Google Play publishing tools..."
+        pip install --quiet google-api-python-client google-auth-httplib2 google-auth-oauthlib
+        
+        # Create Python script for upload
+        cat > /tmp/upload_to_play_console.py << 'EOF'
+import json
+import sys
+from googleapiclient.discovery import build
+from google.oauth2 import service_account
+from googleapiclient.http import MediaFileUpload
+        
+# Load configuration
+service_account_file = '/tmp/play-console-service-account.json'
+package_name = sys.argv[1]
+aab_file = sys.argv[2]
+version_name = sys.argv[3]
+version_code = int(sys.argv[4])
+        
+print(f"🔐 Authenticating with Google Play Console...")
+        
+# Setup credentials
+credentials = service_account.Credentials.from_service_account_file(
+    service_account_file,
+    scopes=['https://www.googleapis.com/auth/androidpublisher']
+)
+        
+# Build service
+service = build('androidpublisher', 'v3', credentials=credentials)
+        
+try:
+    print(f"📤 Creating edit transaction...")
+    
+    # Create edit
+    edit_request = service.edits().insert(body={}, packageName=package_name)
+    edit_result = edit_request.execute()
+    edit_id = edit_result['id']
+    
+    print(f"✅ Edit created: {edit_id}")
+    print(f"📦 Uploading AAB file: {aab_file}")
+    
+    # Upload AAB
+    media = MediaFileUpload(aab_file, mimetype='application/octet-stream')
+    upload_request = service.edits().bundles().upload(
+        editId=edit_id,
+        packageName=package_name,
+        media_body=media
+    )
+    upload_result = upload_request.execute()
+    
+    print(f"✅ AAB uploaded successfully")
+    print(f"📊 Version Code: {upload_result['versionCode']}")
+    
+    # Update internal testing track
+    track_request = service.edits().tracks().update(
+        editId=edit_id,
+        packageName=package_name,
+        track='internal',
+        body={
+            'track': 'internal',
+            'releases': [{
+                'name': f'Release v{version_name}',
+                'versionCodes': [str(upload_result['versionCode'])],
+                'status': 'completed'
+            }]
+        }
+    )
+    track_result = track_request.execute()
+    
+    print(f"✅ Added to internal testing track")
+    
+    # Commit the edit
+    commit_request = service.edits().commit(
+        editId=edit_id,
+        packageName=package_name
+    )
+    commit_result = commit_request.execute()
+    
+    print(f"🎉 Successfully uploaded to Google Play Console!")
+    print(f"🔗 View in Play Console: https://play.google.com/console/u/0/developers/{package_name}/app-dashboard")
+    print(f"📱 App is now available for internal testing")
+    
+except Exception as e:
+    print(f"❌ Upload failed: {str(e)}")
+    sys.exit(1)
+EOF
+        
+        # Run the upload
+        echo "🚀 Uploading AAB to Google Play Console..."
+        python /tmp/upload_to_play_console.py \
+          "${{ env.PACKAGE_NAME }}" \
+          "$AAB_FILE" \
+          "${{ github.event.inputs.app_version }}" \
+          "${{ github.event.inputs.version_code }}"
+        
+        # Cleanup
+        rm -f /tmp/play-console-service-account.json /tmp/upload_to_play_console.py
+        
+        echo "✅ Google Play Console upload completed!"
         
     - name: 📊 Build Summary
       if: always()
