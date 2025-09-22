@@ -1,5 +1,8 @@
 name: 🤖 Android Signed Release Build
 
+permissions:
+  contents: write
+
 # CRITICAL KEYSTORE REQUIREMENTS:
 # ================================
 # 🔑 Google Play Store requires the EXACT SAME signing key for all app updates
@@ -335,19 +338,81 @@ jobs:
         Commit: ${{ github.sha }}
         EOF
         
-        # Clean up any existing release
-        if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-          echo "Cleaning up existing release..."
-          gh release delete "$RELEASE_TAG" --yes || true
-        fi
-        
-        # Create release with AAB upload in one step (more reliable)
-        echo "Creating release and uploading AAB..."
+        # Prepare AAB for upload and export variables
+        echo "Preparing AAB for release..."
         cp "$AAB_FILE" "$AAB_NAME"
-        gh release create "$RELEASE_TAG" "$AAB_NAME" \
-          --title "$RELEASE_NAME" \
-          --notes-file release_notes.md \
-          --latest
+        
+        # Export variables for next steps
+        echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
+        echo "AAB_NAME=$AAB_NAME" >> $GITHUB_ENV
+        echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_ENV
+        
+        # Read release notes for GitHub release
+        RELEASE_NOTES=$(cat release_notes.md)
+        echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
+        echo "$RELEASE_NOTES" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+        
+    - name: 🗑️ Delete Existing Release (if exists)
+      if: ${{ github.event.inputs.build_type == 'release' }}
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const tag = `v${{ github.event.inputs.app_version }}-build${{ github.event.inputs.version_code }}`;
+          try {
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tag
+            });
+            await github.rest.repos.deleteRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.data.id
+            });
+            console.log(`Deleted existing release: ${tag}`);
+          } catch (e) {
+            console.log(`No existing release found: ${tag}`);
+          }
+          
+          try {
+            await github.rest.git.deleteRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `tags/${tag}`
+            });
+            console.log(`Deleted existing tag: ${tag}`);
+          } catch (e) {
+            console.log(`No existing tag found: ${tag}`);
+          }
+          
+    - name: 📦 Create GitHub Release
+      id: create_release
+      if: ${{ github.event.inputs.build_type == 'release' }}
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.event.inputs.app_version }}-build${{ github.event.inputs.version_code }}
+        release_name: ${{ env.RELEASE_NAME }}
+        body: ${{ env.RELEASE_NOTES }}
+        draft: false
+        prerelease: false
+        
+    - name: 📱 Upload AAB Asset
+      if: ${{ github.event.inputs.build_type == 'release' }}
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: android/${{ env.AAB_PATH }}
+        asset_name: ${{ env.AAB_NAME }}
+        asset_content_type: application/octet-stream
+        
+    - name: ✅ Release Success
+      if: ${{ github.event.inputs.build_type == 'release' }}
+      run: |
         
         echo "✅ GitHub release created successfully!"
         echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/$RELEASE_TAG"
