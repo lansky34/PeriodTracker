@@ -142,6 +142,13 @@ jobs:
         echo "AAB_FILE=$AAB_FILE" >> $GITHUB_ENV
         echo "AAB_SIZE=$AAB_SIZE" >> $GITHUB_ENV
         
+    - name: 📦 Upload AAB Artifact (GUARANTEED)
+      uses: actions/upload-artifact@v4
+      with:
+        name: FlowTracker-AAB-v${{ github.event.inputs.app_version }}-build${{ github.event.inputs.version_code }}
+        path: android/${{ env.AAB_FILE }}
+        retention-days: 30
+        
     - name: 🔍 Verify AAB Integrity
       if: ${{ github.event.inputs.build_type == 'release' }}
       working-directory: android
@@ -225,29 +232,19 @@ jobs:
             console.log(`No existing tag: ${tag}`);
           }
           
-    - name: 📦 Create GitHub Release
-      id: create_release
+    - name: 📦 Create GitHub Release (Improved)
       if: ${{ github.event.inputs.build_type == 'release' }}
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ env.RELEASE_TAG }}
-        release_name: ${{ env.RELEASE_NAME }}
+        name: ${{ env.RELEASE_NAME }}
         body: ${{ env.RELEASE_NOTES }}
+        files: ${{ env.AAB_NAME }}
         draft: false
         prerelease: false
-        
-    - name: 📱 Upload AAB to Release
-      if: ${{ github.event.inputs.build_type == 'release' }}
-      uses: actions/upload-release-asset@v1
+        fail_on_unmatched_files: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ env.AAB_NAME }}
-        asset_name: ${{ env.AAB_NAME }}
-        asset_content_type: application/octet-stream
         
     - name: 🚀 Google Play Console Ready
       if: ${{ github.event.inputs.upload_to_play_console && github.event.inputs.build_type == 'release' }}
