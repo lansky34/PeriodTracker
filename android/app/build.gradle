@@ -9,8 +9,17 @@ android {
         applicationId "xyz.flowtracker.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        
+        // Dynamic versioning - respects CI/CD parameters
+        def buildVersionCode = System.getenv("VERSION_CODE")?.toInteger() ?: 
+                              (project.hasProperty("versionCode") ? project.property("versionCode").toInteger() : 8)
+        def buildVersionName = System.getenv("VERSION_NAME") ?: 
+                              (project.hasProperty("versionName") ? project.property("versionName") : "1.0.6")
+        
+        versionCode buildVersionCode
+        versionName buildVersionName
+        
+        println "📱 Building with versionCode: ${buildVersionCode}, versionName: ${buildVersionName}"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
         aaptOptions {
@@ -76,11 +85,12 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             
-            // Enforce signing for release builds
+            // Enforce proper signing for release builds
+            def isReleaseTask = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
             if (project.ext.releaseSigningConfigured) {
                 signingConfig signingConfigs.release
                 println "✅ Release build signed using: ${project.ext.releaseSigningMethod}"
-            } else {
+            } else if (isReleaseTask) {
                 throw new GradleException("""
                     ❌ RELEASE BUILD SIGNING ERROR:
                     Release builds must be properly signed for distribution.
@@ -88,26 +98,15 @@ android {
                     Please configure signing using one of these methods:
                     
                     1. Environment Variables (recommended for CI/CD):
-                       - ANDROID_KEYSTORE_PASSWORD
-                       - ANDROID_KEY_PASSWORD  
-                       - ANDROID_KEY_ALIAS
-                       - Place keystore file at: android/app/my-release-key.jks
+                       - ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_PASSWORD, ANDROID_KEY_ALIAS
+                       - Place keystore at: android/app/my-release-key.jks
                     
-                    2. gradle.properties:
-                       - MYAPP_RELEASE_STORE_FILE
-                       - MYAPP_RELEASE_STORE_PASSWORD
-                       - MYAPP_RELEASE_KEY_ALIAS
-                       - MYAPP_RELEASE_KEY_PASSWORD
+                    2. keystore.properties file in android/ directory
                     
-                    3. keystore.properties file:
-                       - Create android/keystore.properties with:
-                         storeFile=path/to/keystore.jks
-                         storePassword=your_store_password
-                         keyAlias=your_key_alias
-                         keyPassword=your_key_password
-                    
-                    For debug builds, use: ./gradlew assembleDebug
+                    For testing, use debug builds: ./gradlew bundleDebug
                 """)
+            } else {
+                println "ℹ️ Debug/development build - signing not required"
             }
         }
         

@@ -106,6 +106,9 @@ jobs:
         
     - name: 🛠️ Build AAB (Clean Process)
       working-directory: android
+      env:
+        VERSION_CODE: ${{ github.event.inputs.version_code }}
+        VERSION_NAME: ${{ github.event.inputs.app_version }}
       run: |
         echo "🚀 Starting clean AAB build..."
         
