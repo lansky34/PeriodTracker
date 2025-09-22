@@ -75,9 +75,9 @@ jobs:
           exit 1
         fi
         
-        echo "$KEYSTORE_BASE64" | base64 -d > android/my-release-key.jks
+        echo "$KEYSTORE_BASE64" | base64 -d > android/app/my-release-key.jks
         
-        if [ ! -f "android/my-release-key.jks" ]; then
+        if [ ! -f "android/app/my-release-key.jks" ]; then
           echo "❌ Failed to create keystore file"
           exit 1
         fi
@@ -92,7 +92,7 @@ jobs:
       run: |
         echo "🔧 Creating keystore.properties..."
         cat > android/keystore.properties << EOF
-        storeFile=my-release-key.jks
+        storeFile=app/my-release-key.jks
         storePassword=$KEYSTORE_PASSWORD
         keyPassword=$KEY_PASSWORD
         keyAlias=$KEY_ALIAS
