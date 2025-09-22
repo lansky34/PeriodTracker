@@ -92,7 +92,7 @@ jobs:
       run: |
         echo "🔧 Creating keystore.properties..."
         cat > android/keystore.properties << EOF
-        storeFile=app/my-release-key.jks
+        storeFile=my-release-key.jks
         storePassword=$KEYSTORE_PASSWORD
         keyPassword=$KEY_PASSWORD
         keyAlias=$KEY_ALIAS
